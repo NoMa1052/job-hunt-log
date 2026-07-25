@@ -118,6 +118,25 @@ export default function App() {
     await supabase.from('companies').delete().eq('id', id)
   }
 
+  function appliedCountFor(companyName) {
+    const target = (companyName || '').trim().toLowerCase()
+    if (!target) return 0
+    return applications.filter(a => (a.company || '').trim().toLowerCase() === target).length
+  }
+
+  async function trackCareersClick(id) {
+    const now = new Date().toISOString()
+    setCompanies(prev => prev.map(c => c.id === id ? { ...c, last_clicked: now } : c))
+    await supabase.from('companies').update({ last_clicked: now }).eq('id', id)
+  }
+
+  function formatClicked(ts) {
+    if (!ts) return '—'
+    const d = new Date(ts)
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' +
+      d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  }
+
   const counts = { applied: 0, screen: 0, interview: 0, offer: 0, rejected: 0, withdrawn: 0 }
   applications.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++ })
   const active = applications.length - counts.rejected - counts.withdrawn
@@ -220,7 +239,7 @@ export default function App() {
       {tab === 'companies' && (
         <div className="panel">
           <div className="panel-head">
-            <p>Places you're watching, researching, or were pointed toward — no application yet.</p>
+            <p>Places you're watching, researching, or were pointed toward.</p>
             <button className="add-btn" onClick={addCompany}>+ Add company</button>
           </div>
           <div className="table-wrap">
@@ -229,6 +248,8 @@ export default function App() {
                 <tr>
                   <th style={{ width: 200 }}>Company</th>
                   <th style={{ width: 220 }}>Careers link</th>
+                  <th style={{ width: 60 }}>Applied</th>
+                  <th style={{ width: 120 }}>Last clicked</th>
                   <th>Notes</th>
                   <th></th>
                 </tr>
@@ -241,10 +262,12 @@ export default function App() {
                       <div className="link-with-open">
                         <input type="url" placeholder="paste careers page link" defaultValue={c.careers_link || ''} onBlur={e => updateCompany(c.id, 'careers_link', e.target.value)} />
                         {c.careers_link && (
-                          <a href={c.careers_link} target="_blank" rel="noopener noreferrer" title="Open careers page"><i className="ti ti-external-link" /></a>
+                          <a href={c.careers_link} target="_blank" rel="noopener noreferrer" title="Open careers page" onClick={() => trackCareersClick(c.id)}><i className="ti ti-external-link" /></a>
                         )}
                       </div>
                     </td>
+                    <td className="num-col" style={{ textAlign: 'center' }}>{appliedCountFor(c.company)}</td>
+                    <td className="num-col">{formatClicked(c.last_clicked)}</td>
                     <td>
                       <textarea className="conv-note" placeholder="why you're interested, who mentioned it, anything else" defaultValue={c.notes || ''} onBlur={e => updateCompany(c.id, 'notes', e.target.value)} />
                     </td>
