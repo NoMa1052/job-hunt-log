@@ -326,6 +326,11 @@ tr.detail-row td { background: var(--paper-2); padding: 16px 20px; border-bottom
 }
 .detail-grid .conv-note { background: var(--paper-raised); border: 1px solid var(--line); padding: 7px 8px; }
 
+.link-with-open { display: flex; align-items: center; gap: 6px; }
+.link-with-open input { flex: 1; }
+.link-with-open a { color: var(--steel); font-size: 16px; display: inline-flex; flex-shrink: 0; }
+.link-with-open a:hover { color: var(--steel-dark); }
+
 @media (max-width: 640px) {
   .tally { width: 100%; justify-content: space-between; }
   header { align-items: flex-start; }

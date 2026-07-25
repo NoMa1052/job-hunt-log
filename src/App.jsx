@@ -25,12 +25,14 @@ export default function App() {
   const [tab, setTab] = useState('applications')
   const [applications, setApplications] = useState([])
   const [conversations, setConversations] = useState([])
+  const [companies, setCompanies] = useState([])
   const [expanded, setExpanded] = useState(new Set())
   const [saving, setSaving] = useState('')
 
   useEffect(() => {
     loadApplications()
     loadConversations()
+    loadCompanies()
   }, [])
 
   async function loadApplications() {
@@ -95,6 +97,27 @@ export default function App() {
     await supabase.from('conversations').delete().eq('id', id)
   }
 
+  async function loadCompanies() {
+    const { data } = await supabase.from('companies').select('*').order('created_at', { ascending: false })
+    setCompanies(data || [])
+  }
+
+  async function addCompany() {
+    const { data, error } = await supabase.from('companies').insert({ company: '', careers_link: '', notes: '' }).select().single()
+    if (!error && data) setCompanies(prev => [data, ...prev])
+  }
+
+  async function updateCompany(id, field, value) {
+    setCompanies(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c))
+    flagSaving()
+    await supabase.from('companies').update({ [field]: value }).eq('id', id)
+  }
+
+  async function deleteCompany(id) {
+    setCompanies(prev => prev.filter(c => c.id !== id))
+    await supabase.from('companies').delete().eq('id', id)
+  }
+
   const counts = { applied: 0, screen: 0, interview: 0, offer: 0, rejected: 0, withdrawn: 0 }
   applications.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++ })
   const active = applications.length - counts.rejected - counts.withdrawn
@@ -116,6 +139,7 @@ export default function App() {
       <div className="tabs">
         <button className={'tab' + (tab === 'applications' ? ' active' : '')} onClick={() => setTab('applications')}>Applications</button>
         <button className={'tab' + (tab === 'conversations' ? ' active' : '')} onClick={() => setTab('conversations')}>Conversations</button>
+        <button className={'tab' + (tab === 'companies' ? ' active' : '')} onClick={() => setTab('companies')}>Companies</button>
       </div>
 
       {tab === 'applications' && (
@@ -190,6 +214,47 @@ export default function App() {
             </table>
           </div>
           {conversations.length === 0 && <div className="empty-state">No conversations logged yet. Add one above.</div>}
+        </div>
+      )}
+
+      {tab === 'companies' && (
+        <div className="panel">
+          <div className="panel-head">
+            <p>Places you're watching, researching, or were pointed toward — no application yet.</p>
+            <button className="add-btn" onClick={addCompany}>+ Add company</button>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style={{ width: 200 }}>Company</th>
+                  <th style={{ width: 220 }}>Careers link</th>
+                  <th>Notes</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {companies.map(c => (
+                  <tr key={c.id}>
+                    <EditableCell value={c.company} placeholder="Company" onSave={v => updateCompany(c.id, 'company', v)} />
+                    <td className="link-cell">
+                      <div className="link-with-open">
+                        <input type="url" placeholder="paste careers page link" defaultValue={c.careers_link || ''} onBlur={e => updateCompany(c.id, 'careers_link', e.target.value)} />
+                        {c.careers_link && (
+                          <a href={c.careers_link} target="_blank" rel="noopener noreferrer" title="Open careers page"><i className="ti ti-external-link" /></a>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <textarea className="conv-note" placeholder="why you're interested, who mentioned it, anything else" defaultValue={c.notes || ''} onBlur={e => updateCompany(c.id, 'notes', e.target.value)} />
+                    </td>
+                    <td><button className="del-btn" title="Delete row" onClick={() => deleteCompany(c.id)}>×</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {companies.length === 0 && <div className="empty-state">No companies logged yet. Add one above.</div>}
         </div>
       )}
 
