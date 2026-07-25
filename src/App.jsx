@@ -10,15 +10,22 @@ const STATUS_OPTIONS = [
   { value: 'withdrawn', label: 'Withdrawn', cls: 'st-withdrawn' }
 ]
 
-function statusClass(value) {
-  const m = STATUS_OPTIONS.find(s => s.value === value)
-  return m ? m.cls : 'st-applied'
+const PRIORITY_OPTIONS = [
+  { value: 'high', label: 'High', cls: 'pr-high' },
+  { value: 'medium', label: 'Medium', cls: 'pr-medium' },
+  { value: 'low', label: 'Low', cls: 'pr-low' }
+]
+
+function optionClass(list, value, fallback) {
+  const m = list.find(s => s.value === value)
+  return m ? m.cls : fallback
 }
 
 export default function App() {
   const [tab, setTab] = useState('applications')
   const [applications, setApplications] = useState([])
   const [conversations, setConversations] = useState([])
+  const [expanded, setExpanded] = useState(new Set())
   const [saving, setSaving] = useState('')
 
   useEffect(() => {
@@ -41,11 +48,22 @@ export default function App() {
     setTimeout(() => setSaving('Saved'), 400)
   }, [])
 
+  function toggleExpanded(id) {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
   async function addApplication() {
     const { data, error } = await supabase.from('applications').insert({
-      company: '', position: '', location: '', status: 'applied', cover_letter: false
+      company: '', position: '', location: '', status: 'applied', priority: 'medium'
     }).select().single()
-    if (!error && data) setApplications(prev => [data, ...prev])
+    if (!error && data) {
+      setApplications(prev => [data, ...prev])
+      setExpanded(prev => new Set(prev).add(data.id))
+    }
   }
 
   async function updateApplication(id, field, value) {
@@ -103,42 +121,28 @@ export default function App() {
       {tab === 'applications' && (
         <div className="panel">
           <div className="panel-head">
-            <p>One row per role. Click any cell to edit, it saves automatically.</p>
+            <p>Click a row to see source, salary, contacts, and notes. Cell edits save automatically.</p>
             <button className="add-btn" onClick={addApplication}>+ Add application</button>
           </div>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
+                  <th style={{ width: 24 }}></th>
                   <th>Company</th><th>Position</th><th>Location</th><th>Applied</th>
-                  <th>Status</th><th>Cover letter</th><th>Hiring manager</th>
-                  <th>Other connections</th><th>Link</th><th></th>
+                  <th>Status</th><th>Priority</th><th style={{ width: 60 }}>Letter</th><th></th>
                 </tr>
               </thead>
               <tbody>
                 {applications.map(a => (
-                  <tr key={a.id}>
-                    <EditableCell value={a.company} placeholder="Company" onSave={v => updateApplication(a.id, 'company', v)} />
-                    <EditableCell value={a.position} placeholder="Position" onSave={v => updateApplication(a.id, 'position', v)} />
-                    <EditableCell value={a.location} placeholder="Location" onSave={v => updateApplication(a.id, 'location', v)} />
-                    <td className="num-col">
-                      <input type="date" value={a.date_applied || ''} onChange={e => updateApplication(a.id, 'date_applied', e.target.value)} />
-                    </td>
-                    <td>
-                      <select className={'status-select ' + statusClass(a.status)} value={a.status || 'applied'} onChange={e => updateApplication(a.id, 'status', e.target.value)}>
-                        {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                      </select>
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <input type="checkbox" className="cover-check" checked={!!a.cover_letter} onChange={e => updateApplication(a.id, 'cover_letter', e.target.checked)} />
-                    </td>
-                    <EditableCell value={a.hiring_manager} placeholder="—" onSave={v => updateApplication(a.id, 'hiring_manager', v)} />
-                    <EditableCell value={a.connections} placeholder="—" onSave={v => updateApplication(a.id, 'connections', v)} />
-                    <td className="link-cell">
-                      <input type="url" placeholder="paste link" defaultValue={a.link || ''} onBlur={e => updateApplication(a.id, 'link', e.target.value)} />
-                    </td>
-                    <td><button className="del-btn" title="Delete row" onClick={() => deleteApplication(a.id)}>×</button></td>
-                  </tr>
+                  <ApplicationRow
+                    key={a.id}
+                    app={a}
+                    isOpen={expanded.has(a.id)}
+                    onToggle={() => toggleExpanded(a.id)}
+                    onUpdate={(field, value) => updateApplication(a.id, field, value)}
+                    onDelete={() => deleteApplication(a.id)}
+                  />
                 ))}
               </tbody>
             </table>
@@ -191,6 +195,58 @@ export default function App() {
 
       <footer className="saved-tag">{saving}</footer>
     </div>
+  )
+}
+
+function ApplicationRow({ app: a, isOpen, onToggle, onUpdate, onDelete }) {
+  return (
+    <>
+      <tr className="app-row">
+        <td className="expand-cell" onClick={onToggle}>
+          <span className={'chevron' + (isOpen ? ' open' : '')}>›</span>
+        </td>
+        <EditableCell value={a.company} placeholder="Company" onSave={v => onUpdate('company', v)} />
+        <EditableCell value={a.position} placeholder="Position" onSave={v => onUpdate('position', v)} />
+        <EditableCell value={a.location} placeholder="Location" onSave={v => onUpdate('location', v)} />
+        <td className="num-col">
+          <input type="date" value={a.date_applied || ''} onChange={e => onUpdate('date_applied', e.target.value)} />
+        </td>
+        <td>
+          <select className={'status-select ' + optionClass(STATUS_OPTIONS, a.status, 'st-applied')} value={a.status || 'applied'} onChange={e => onUpdate('status', e.target.value)}>
+            {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        </td>
+        <td>
+          <select className={'priority-select ' + optionClass(PRIORITY_OPTIONS, a.priority, 'pr-medium')} value={a.priority || 'medium'} onChange={e => onUpdate('priority', e.target.value)}>
+            {PRIORITY_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+        </td>
+        <td style={{ textAlign: 'center' }}>
+          {a.cover_letter_link
+            ? <a className="letter-link" href={a.cover_letter_link} target="_blank" rel="noopener noreferrer" title="Open cover letter" onClick={e => e.stopPropagation()}><i className="ti ti-file-text" /></a>
+            : <span className="letter-link-empty">—</span>}
+        </td>
+        <td><button className="del-btn" title="Delete row" onClick={onDelete}>×</button></td>
+      </tr>
+      {isOpen && (
+        <tr className="detail-row">
+          <td colSpan={9}>
+            <div className="detail-grid">
+              <label>Cover letter link<input type="url" placeholder="paste Google Doc link" defaultValue={a.cover_letter_link || ''} onBlur={e => onUpdate('cover_letter_link', e.target.value)} /></label>
+              <label>Job posting link<input type="url" placeholder="paste posting link" defaultValue={a.link || ''} onBlur={e => onUpdate('link', e.target.value)} /></label>
+              <label>Source<input type="text" placeholder="referral, LinkedIn, cold, etc." defaultValue={a.source || ''} onBlur={e => onUpdate('source', e.target.value)} /></label>
+              <label>Salary / comp<input type="text" placeholder="e.g. $70k–85k or n/a" defaultValue={a.salary || ''} onBlur={e => onUpdate('salary', e.target.value)} /></label>
+              <label>Hiring manager<input type="text" defaultValue={a.hiring_manager || ''} onBlur={e => onUpdate('hiring_manager', e.target.value)} /></label>
+              <label>Other connections<input type="text" defaultValue={a.connections || ''} onBlur={e => onUpdate('connections', e.target.value)} /></label>
+              <label>Next action<input type="text" placeholder="e.g. follow up with recruiter" defaultValue={a.next_action || ''} onBlur={e => onUpdate('next_action', e.target.value)} /></label>
+              <label>Follow-up date<input type="date" value={a.follow_up_date || ''} onChange={e => onUpdate('follow_up_date', e.target.value)} /></label>
+              <label>Interview date<input type="date" value={a.interview_date || ''} onChange={e => onUpdate('interview_date', e.target.value)} /></label>
+              <label className="notes-field">Notes<textarea className="conv-note" placeholder="interview prep, red flags, anything else" defaultValue={a.notes || ''} onBlur={e => onUpdate('notes', e.target.value)} /></label>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   )
 }
 
