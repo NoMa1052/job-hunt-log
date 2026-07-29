@@ -449,3 +449,166 @@ tr:hover .edit-pencil { opacity: 1; }
   header { align-items: flex-start; }
   .detail-grid { grid-template-columns: 1fr; }
 }
+
+.expand-cell { cursor: pointer; text-align: center; width: 30px; }
+.expand-icon { color: var(--ink-faint); font-size: 13px; }
+.expand-cell:hover .expand-icon { color: var(--steel); }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 18, 12, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.modal {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: var(--paper-raised);
+}
+
+.modal-title-group { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+
+.modal-title-input {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 19px;
+  font-weight: 700;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  padding: 2px 0;
+}
+.modal-title-input:focus { outline: none; border-bottom: 1px solid var(--steel); }
+
+.modal-subtitle-input {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--ink-soft);
+  border: none;
+  background: transparent;
+  padding: 2px 0;
+}
+.modal-subtitle-input:focus { outline: none; border-bottom: 1px solid var(--steel); color: var(--ink); }
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ink-faint);
+  cursor: pointer;
+  padding: 0 0 0 12px;
+}
+.modal-close:hover { color: var(--ink); }
+
+.modal-grid { padding: 18px 20px 22px; }
+
+.detail-grid select {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 7px 8px;
+}
+
+.confirm-box {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 22px 22px 18px;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+}
+.confirm-box p { margin: 0 0 18px; font-size: 14px; color: var(--ink); line-height: 1.4; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+button.add-btn.danger {
+  background: var(--red);
+  color: #fff;
+}
+button.add-btn.danger:hover { background: #6f3020; }
+
+.notes-btn {
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.notes-btn:hover { color: var(--ink); background: var(--paper-2); }
+
+.modal-title-static {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.modal-subtitle-static { font-size: 13px; color: var(--ink-soft); }
+
+.thread-section { padding: 0 20px 22px; border-top: 1px solid var(--line); }
+
+.thread-add {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 14px;
+}
+.thread-add-row { display: flex; gap: 8px; align-items: center; }
+.thread-add-row input[type="date"] {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 7px 8px;
+  border-radius: var(--radius);
+  color: var(--ink);
+}
+.thread-add .conv-note { border: 1px solid var(--line); background: var(--paper); padding: 7px 8px; }
+
+.thread-list { display: flex; flex-direction: column; gap: 14px; }
+.thread-empty { color: var(--ink-faint); font-size: 13px; margin: 8px 0; }
+
+.thread-entry {
+  border-left: 2px solid var(--line);
+  padding-left: 12px;
+}
+.thread-entry-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  margin-bottom: 4px;
+}
+.thread-entry-text { font-size: 13px; line-height: 1.5; color: var(--ink); margin-bottom: 3px; }

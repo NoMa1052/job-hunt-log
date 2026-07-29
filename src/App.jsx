@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from './supabaseClient'
 
 const STATUS_OPTIONS = [
@@ -68,23 +68,37 @@ function downloadCSV(filename, csv) {
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
 }
+function formatDateTime(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
 
 export default function App() {
   const [tab, setTab] = useState('applications')
   const [applications, setApplications] = useState([])
-  const [conversations, setConversations] = useState([])
+  const [people, setPeople] = useState([])
+  const [entries, setEntries] = useState([])
   const [companies, setCompanies] = useState([])
-  const [expandedApps, setExpandedApps] = useState(new Set())
-  const [expandedConvos, setExpandedConvos] = useState(new Set())
+  const [companyNotes, setCompanyNotes] = useState([])
   const [saving, setSaving] = useState('')
 
   const [columnOrder, setColumnOrder] = useState(() => loadLocal('jhl-col-order', DEFAULT_ORDER))
   const [hiddenCols, setHiddenCols] = useState(() => new Set(loadLocal('jhl-hidden-cols', DEFAULT_HIDDEN)))
   const [colFilters, setColFilters] = useState(() => loadLocal('jhl-col-filters', {}))
+  const [peopleFilters, setPeopleFilters] = useState({})
   const [openFilterCol, setOpenFilterCol] = useState(null)
+  const [openFilterPeopleCol, setOpenFilterPeopleCol] = useState(null)
   const [manageColsOpen, setManageColsOpen] = useState(false)
 
-  useEffect(() => { loadApplications(); loadConversations(); loadCompanies() }, [])
+  const [editingAppId, setEditingAppId] = useState(null)
+  const [contactPersonId, setContactPersonId] = useState(null)
+  const [notesCompanyId, setNotesCompanyId] = useState(null)
+  const [confirmTarget, setConfirmTarget] = useState(null)
+
+  const dragColIdxRef = useRef(null)
+
+  useEffect(() => { loadApplications(); loadPeople(); loadEntries(); loadCompanies(); loadCompanyNotes() }, [])
   useEffect(() => { saveLocal('jhl-col-order', columnOrder) }, [columnOrder])
   useEffect(() => { saveLocal('jhl-hidden-cols', [...hiddenCols]) }, [hiddenCols])
   useEffect(() => { saveLocal('jhl-col-filters', colFilters) }, [colFilters])
@@ -93,6 +107,7 @@ export default function App() {
     function onClickOutside(e) {
       if (!e.target.closest('.popover') && !e.target.closest('.popover-wrap')) {
         setOpenFilterCol(null)
+        setOpenFilterPeopleCol(null)
         setManageColsOpen(false)
       }
     }
@@ -104,13 +119,21 @@ export default function App() {
     const { data } = await supabase.from('applications').select('*').order('date_applied', { ascending: false, nullsFirst: false })
     setApplications(data || [])
   }
-  async function loadConversations() {
-    const { data } = await supabase.from('conversations').select('*').order('date', { ascending: false, nullsFirst: false })
-    setConversations(data || [])
+  async function loadPeople() {
+    const { data } = await supabase.from('people').select('*').order('name')
+    setPeople(data || [])
+  }
+  async function loadEntries() {
+    const { data } = await supabase.from('conversation_entries').select('*').order('date', { ascending: false, nullsFirst: false })
+    setEntries(data || [])
   }
   async function loadCompanies() {
     const { data } = await supabase.from('companies').select('*').order('created_at', { ascending: false })
     setCompanies(data || [])
+  }
+  async function loadCompanyNotes() {
+    const { data } = await supabase.from('company_notes').select('*').order('created_at', { ascending: false })
+    setCompanyNotes(data || [])
   }
 
   const flagSaving = useCallback(() => {
@@ -118,21 +141,13 @@ export default function App() {
     setTimeout(() => setSaving('Saved'), 400)
   }, [])
 
-  function toggleSet(setState, id) {
-    setState(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
-  }
-
   async function addApplication() {
     const { data, error } = await supabase.from('applications').insert({
       company: '', position: '', location: '', status: 'applied', priority: 'medium'
     }).select().single()
     if (!error && data) {
       setApplications(prev => [data, ...prev])
-      setExpandedApps(prev => new Set(prev).add(data.id))
+      setEditingAppId(data.id)
     }
   }
   async function updateApplication(id, field, value) {
@@ -145,27 +160,30 @@ export default function App() {
     await supabase.from('applications').delete().eq('id', id)
   }
 
-  async function addConversation() {
-    const { data, error } = await supabase.from('conversations').insert({
-      person: '', context: '', recommendation: '', notes: '', email: '', phone: '', other_contact: ''
-    }).select().single()
+  async function addPerson() {
+    const { data, error } = await supabase.from('people').insert({ name: '', company: '', email: '', phone: '', other_contact: '' }).select().single()
     if (!error && data) {
-      setConversations(prev => [data, ...prev])
-      setExpandedConvos(prev => new Set(prev).add(data.id))
+      setPeople(prev => [data, ...prev])
+      setContactPersonId(data.id)
     }
   }
-  async function updateConversation(id, field, value) {
-    setConversations(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c))
+  async function updatePerson(id, field, value) {
+    setPeople(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p))
     flagSaving()
-    await supabase.from('conversations').update({ [field]: value }).eq('id', id)
+    await supabase.from('people').update({ [field]: value }).eq('id', id)
   }
-  async function deleteConversation(id) {
-    setConversations(prev => prev.filter(c => c.id !== id))
-    await supabase.from('conversations').delete().eq('id', id)
+  async function deletePerson(id) {
+    setPeople(prev => prev.filter(p => p.id !== id))
+    setEntries(prev => prev.filter(e => e.person_id !== id))
+    await supabase.from('people').delete().eq('id', id)
+  }
+  async function addEntry(personId, { date, recommendation, notes }) {
+    const { data, error } = await supabase.from('conversation_entries').insert({ person_id: personId, date, recommendation, notes }).select().single()
+    if (!error && data) setEntries(prev => [data, ...prev])
   }
 
   async function addCompany() {
-    const { data, error } = await supabase.from('companies').insert({ company: '', careers_link: '', notes: '' }).select().single()
+    const { data, error } = await supabase.from('companies').insert({ company: '', careers_link: '' }).select().single()
     if (!error && data) setCompanies(prev => [data, ...prev])
   }
   async function updateCompany(id, field, value) {
@@ -175,7 +193,12 @@ export default function App() {
   }
   async function deleteCompany(id) {
     setCompanies(prev => prev.filter(c => c.id !== id))
+    setCompanyNotes(prev => prev.filter(n => n.company_id !== id))
     await supabase.from('companies').delete().eq('id', id)
+  }
+  async function addCompanyNote(companyId, note) {
+    const { data, error } = await supabase.from('company_notes').insert({ company_id: companyId, note }).select().single()
+    if (!error && data) setCompanyNotes(prev => [data, ...prev])
   }
   function appliedCountFor(companyName) {
     const target = (companyName || '').trim().toLowerCase()
@@ -194,14 +217,22 @@ export default function App() {
       d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
   }
 
+  function requestDelete(type, id) { setConfirmTarget({ type, id }) }
+  function confirmDeleteAction() {
+    if (!confirmTarget) return
+    if (confirmTarget.type === 'application') deleteApplication(confirmTarget.id)
+    if (confirmTarget.type === 'person') deletePerson(confirmTarget.id)
+    if (confirmTarget.type === 'company') deleteCompany(confirmTarget.id)
+    setConfirmTarget(null)
+  }
+
   function hideColumn(key) { setHiddenCols(prev => new Set(prev).add(key)) }
   function showColumn(key) { setHiddenCols(prev => { const next = new Set(prev); next.delete(key); return next }) }
-  function moveColumn(idx, dir) {
+  function reorderColumns(fromIdx, toIdx) {
     setColumnOrder(prev => {
       const arr = [...prev]
-      const newIdx = idx + dir
-      if (newIdx < 0 || newIdx >= arr.length) return prev
-      ;[arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]]
+      const [moved] = arr.splice(fromIdx, 1)
+      arr.splice(toIdx, 0, moved)
       return arr
     })
   }
@@ -237,11 +268,30 @@ export default function App() {
     }
     return true
   }
+  function passesPeopleFilters(p) {
+    const nameF = (peopleFilters.name || '').trim().toLowerCase()
+    const companyF = (peopleFilters.company || '').trim().toLowerCase()
+    if (nameF && !(p.name || '').toLowerCase().includes(nameF)) return false
+    if (companyF && !(p.company || '').toLowerCase().includes(companyF)) return false
+    return true
+  }
 
   const counts = { applied: 0, screen: 0, interview: 0, offer: 0, rejected: 0, withdrawn: 0 }
   applications.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++ })
   const active = applications.length - counts.rejected - counts.withdrawn
   const filteredApplications = applications.filter(passesFilters)
+  const filteredPeople = people.filter(passesPeopleFilters)
+
+  function entriesFor(personId) {
+    return entries.filter(e => e.person_id === personId)
+  }
+  function lastContactFor(personId) {
+    const list = entriesFor(personId).map(e => e.date).filter(Boolean).sort()
+    return list.length ? list[list.length - 1] : null
+  }
+  function notesFor(companyId) {
+    return companyNotes.filter(n => n.company_id === companyId)
+  }
 
   function exportApplications() {
     const headers = [
@@ -257,22 +307,37 @@ export default function App() {
     downloadCSV('applications.csv', toCSV(headers, filteredApplications))
   }
   function exportConversations() {
+    const rows = []
+    filteredPeople.forEach(p => {
+      const personEntries = entriesFor(p.id)
+      if (personEntries.length === 0) {
+        rows.push({ name: p.name, company: p.company, email: p.email, phone: p.phone, other_contact: p.other_contact, date: '', recommendation: '', notes: '' })
+      } else {
+        personEntries.forEach(e => {
+          rows.push({ name: p.name, company: p.company, email: p.email, phone: p.phone, other_contact: p.other_contact, date: e.date || '', recommendation: e.recommendation || '', notes: e.notes || '' })
+        })
+      }
+    })
     const headers = [
-      { key: 'date', label: 'Date' }, { key: 'person', label: 'Person' }, { key: 'context', label: 'Company/Context' },
-      { key: 'recommendation', label: 'Recommendation' }, { key: 'notes', label: 'Notes' },
-      { key: 'email', label: 'Email' }, { key: 'phone', label: 'Phone' }, { key: 'other_contact', label: 'Other Contact' }
+      { key: 'name', label: 'Person' }, { key: 'company', label: 'Company' },
+      { key: 'email', label: 'Email' }, { key: 'phone', label: 'Phone' }, { key: 'other_contact', label: 'Other Contact' },
+      { key: 'date', label: 'Conversation Date' }, { key: 'recommendation', label: 'Recommendation' }, { key: 'notes', label: 'Notes' }
     ]
-    downloadCSV('conversations.csv', toCSV(headers, conversations))
+    downloadCSV('conversations.csv', toCSV(headers, rows))
   }
   function exportCompanies() {
     const headers = [
       { key: 'company', label: 'Company' }, { key: 'careers_link', label: 'Careers Link' },
       { key: 'applied_count', label: 'Applied Count', value: r => appliedCountFor(r.company) },
       { key: 'last_clicked', label: 'Last Clicked', value: r => r.last_clicked || '' },
-      { key: 'notes', label: 'Notes' }
+      { key: 'notes', label: 'Notes', value: r => notesFor(r.id).slice().reverse().map(n => `${formatDateTime(n.created_at)}: ${n.note}`).join(' | ') }
     ]
     downloadCSV('companies.csv', toCSV(headers, companies))
   }
+
+  const editingApp = editingAppId ? applications.find(a => a.id === editingAppId) : null
+  const contactPerson = contactPersonId ? people.find(p => p.id === contactPersonId) : null
+  const notesCompany = notesCompanyId ? companies.find(c => c.id === notesCompanyId) : null
 
   return (
     <div className="wrap">
@@ -297,7 +362,7 @@ export default function App() {
       {tab === 'applications' && (
         <div className="panel">
           <div className="panel-head">
-            <p>Click a column name to filter it. Click the position to open where you applied.</p>
+            <p>Click the ⤢ icon to open every field. Click a column name to filter it.</p>
             <div className="panel-head-btns">
               <div className="popover-wrap">
                 <button className="add-btn secondary" onClick={() => setManageColsOpen(!manageColsOpen)}>Columns</button>
@@ -307,13 +372,24 @@ export default function App() {
                       const col = ALL_COLUMNS.find(c => c.key === key)
                       if (!col) return null
                       return (
-                        <div key={key} className="manage-col-row">
+                        <div
+                          key={key}
+                          className="manage-col-row"
+                          draggable
+                          onDragStart={() => { dragColIdxRef.current = idx }}
+                          onDragOver={e => e.preventDefault()}
+                          onDrop={() => {
+                            const from = dragColIdxRef.current
+                            if (from === null || from === idx) return
+                            reorderColumns(from, idx)
+                            dragColIdxRef.current = null
+                          }}
+                        >
+                          <span className="drag-handle">⋮⋮</span>
                           <label className="popover-row" style={{ flex: 1 }}>
                             <input type="checkbox" checked={!hiddenCols.has(key)} onChange={() => hiddenCols.has(key) ? showColumn(key) : hideColumn(key)} />
                             {col.label}
                           </label>
-                          <button className="col-move-btn" disabled={idx === 0} onClick={() => moveColumn(idx, -1)}>↑</button>
-                          <button className="col-move-btn" disabled={idx === columnOrder.length - 1} onClick={() => moveColumn(idx, 1)}>↓</button>
                         </div>
                       )
                     })}
@@ -329,7 +405,7 @@ export default function App() {
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 24 }}></th>
+                  <th style={{ width: 30 }}></th>
                   {visibleColumns.map(col => (
                     <th key={col.key}>
                       {(col.type === 'text' || col.type === 'select') ? (
@@ -361,15 +437,13 @@ export default function App() {
               </thead>
               <tbody>
                 {filteredApplications.map(a => (
-                  <ApplicationRow
-                    key={a.id}
-                    app={a}
-                    columns={visibleColumns}
-                    isOpen={expandedApps.has(a.id)}
-                    onToggle={() => toggleSet(setExpandedApps, a.id)}
-                    onUpdate={(field, value) => updateApplication(a.id, field, value)}
-                    onDelete={() => deleteApplication(a.id)}
-                  />
+                  <tr key={a.id} className="app-row">
+                    <td className="expand-cell" onClick={() => setEditingAppId(a.id)} title="Open full details">
+                      <span className="expand-icon">⤢</span>
+                    </td>
+                    {visibleColumns.map(col => renderAppCell(col, a, (field, value) => updateApplication(a.id, field, value)))}
+                    <td><button className="del-btn" title="Delete row" onClick={() => requestDelete('application', a.id)}>×</button></td>
+                  </tr>
                 ))}
               </tbody>
             </table>
@@ -385,39 +459,67 @@ export default function App() {
       {tab === 'conversations' && (
         <div className="panel">
           <div className="panel-head">
-            <p>Click a person's name to see and edit their contact info.</p>
+            <p>Click a person's name to see contact info and every conversation you've logged with them.</p>
             <div className="panel-head-btns">
               <button className="add-btn secondary" onClick={exportConversations}>Export CSV</button>
-              <button className="add-btn" onClick={addConversation}>+ Add conversation</button>
+              <button className="add-btn" onClick={addPerson}>+ Add person</button>
             </div>
           </div>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 100 }}>Date</th>
-                  <th style={{ width: 150 }}>Person</th>
-                  <th style={{ width: 150 }}>Company / context</th>
-                  <th style={{ width: 260 }}>What they recommended</th>
-                  <th>Notes</th>
+                  <th style={{ width: 170 }}>
+                    <div className="popover-wrap">
+                      <button className={'col-label-btn' + ((peopleFilters.name || '').trim() ? ' active-filter' : '')} onClick={() => setOpenFilterPeopleCol(openFilterPeopleCol === 'name' ? null : 'name')}>
+                        Person{(peopleFilters.name || '').trim() && <span className="filter-dot" />}
+                      </button>
+                      {openFilterPeopleCol === 'name' && (
+                        <div className="popover">
+                          <input autoFocus className="col-filter" placeholder="filter…" value={peopleFilters.name || ''} onChange={e => setPeopleFilters(prev => ({ ...prev, name: e.target.value }))} />
+                        </div>
+                      )}
+                    </div>
+                  </th>
+                  <th style={{ width: 170 }}>
+                    <div className="popover-wrap">
+                      <button className={'col-label-btn' + ((peopleFilters.company || '').trim() ? ' active-filter' : '')} onClick={() => setOpenFilterPeopleCol(openFilterPeopleCol === 'company' ? null : 'company')}>
+                        Company{(peopleFilters.company || '').trim() && <span className="filter-dot" />}
+                      </button>
+                      {openFilterPeopleCol === 'company' && (
+                        <div className="popover">
+                          <input autoFocus className="col-filter" placeholder="filter…" value={peopleFilters.company || ''} onChange={e => setPeopleFilters(prev => ({ ...prev, company: e.target.value }))} />
+                        </div>
+                      )}
+                    </div>
+                  </th>
+                  <th style={{ width: 110 }}>Last contact</th>
+                  <th style={{ width: 90 }}>Talks</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {conversations.map(c => (
-                  <ConversationRow
-                    key={c.id}
-                    convo={c}
-                    isOpen={expandedConvos.has(c.id)}
-                    onToggle={() => toggleSet(setExpandedConvos, c.id)}
-                    onUpdate={(field, value) => updateConversation(c.id, field, value)}
-                    onDelete={() => deleteConversation(c.id)}
-                  />
-                ))}
+                {filteredPeople.map(p => {
+                  const count = entriesFor(p.id).length
+                  const last = lastContactFor(p.id)
+                  return (
+                    <tr key={p.id} className="app-row">
+                      <PersonCell value={p.name} onSave={v => updatePerson(p.id, 'name', v)} onOpenModal={() => setContactPersonId(p.id)} />
+                      <EditableCell value={p.company} placeholder="Company" onSave={v => updatePerson(p.id, 'company', v)} />
+                      <td className="num-col">{last ? last : '—'}</td>
+                      <td className="num-col" style={{ textAlign: 'center' }}>{count}</td>
+                      <td><button className="del-btn" title="Delete person" onClick={() => requestDelete('person', p.id)}>×</button></td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
-          {conversations.length === 0 && <div className="empty-state">No conversations logged yet. Add one above.</div>}
+          {filteredPeople.length === 0 && (
+            <div className="empty-state">
+              {people.length === 0 ? 'No conversations logged yet. Add a person above.' : 'Nothing matches the current filters.'}
+            </div>
+          )}
         </div>
       )}
 
@@ -443,25 +545,30 @@ export default function App() {
                 </tr>
               </thead>
               <tbody>
-                {companies.map(c => (
-                  <tr key={c.id}>
-                    <EditableCell value={c.company} placeholder="Company" onSave={v => updateCompany(c.id, 'company', v)} />
-                    <td className="link-cell">
-                      <div className="link-with-open">
-                        <input type="url" placeholder="paste careers page link" defaultValue={c.careers_link || ''} onBlur={e => updateCompany(c.id, 'careers_link', e.target.value)} />
-                        {c.careers_link && (
-                          <a href={c.careers_link} target="_blank" rel="noopener noreferrer" title="Open careers page" onClick={() => trackCareersClick(c.id)}><i className="ti ti-external-link" /></a>
-                        )}
-                      </div>
-                    </td>
-                    <td className="num-col" style={{ textAlign: 'center' }}>{appliedCountFor(c.company)}</td>
-                    <td className="num-col">{formatClicked(c.last_clicked)}</td>
-                    <td>
-                      <textarea className="conv-note" placeholder="why you're interested, who mentioned it, anything else" defaultValue={c.notes || ''} onBlur={e => updateCompany(c.id, 'notes', e.target.value)} />
-                    </td>
-                    <td><button className="del-btn" title="Delete row" onClick={() => deleteCompany(c.id)}>×</button></td>
-                  </tr>
-                ))}
+                {companies.map(c => {
+                  const noteCount = notesFor(c.id).length
+                  return (
+                    <tr key={c.id}>
+                      <EditableCell value={c.company} placeholder="Company" onSave={v => updateCompany(c.id, 'company', v)} />
+                      <td className="link-cell">
+                        <div className="link-with-open">
+                          <input type="url" placeholder="paste careers page link" defaultValue={c.careers_link || ''} onBlur={e => updateCompany(c.id, 'careers_link', e.target.value)} />
+                          {c.careers_link && (
+                            <a href={c.careers_link} target="_blank" rel="noopener noreferrer" title="Open careers page" onClick={() => trackCareersClick(c.id)}><i className="ti ti-external-link" /></a>
+                          )}
+                        </div>
+                      </td>
+                      <td className="num-col" style={{ textAlign: 'center' }}>{appliedCountFor(c.company)}</td>
+                      <td className="num-col">{formatClicked(c.last_clicked)}</td>
+                      <td>
+                        <button className="notes-btn" onClick={() => setNotesCompanyId(c.id)}>
+                          <i className="ti ti-notes" /> {noteCount > 0 ? `${noteCount} note${noteCount > 1 ? 's' : ''}` : 'Add note'}
+                        </button>
+                      </td>
+                      <td><button className="del-btn" title="Delete row" onClick={() => requestDelete('company', c.id)}>×</button></td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -470,6 +577,30 @@ export default function App() {
       )}
 
       <footer className="saved-tag">{saving}</footer>
+
+      {editingApp && (
+        <ApplicationModal app={editingApp} onUpdate={(field, value) => updateApplication(editingApp.id, field, value)} onClose={() => setEditingAppId(null)} />
+      )}
+      {contactPerson && (
+        <ContactModal
+          person={contactPerson}
+          entries={entriesFor(contactPerson.id)}
+          onUpdate={(field, value) => updatePerson(contactPerson.id, field, value)}
+          onAddEntry={data => addEntry(contactPerson.id, data)}
+          onClose={() => setContactPersonId(null)}
+        />
+      )}
+      {notesCompany && (
+        <CompanyNotesModal
+          company={notesCompany}
+          notes={notesFor(notesCompany.id)}
+          onAddNote={note => addCompanyNote(notesCompany.id, note)}
+          onClose={() => setNotesCompanyId(null)}
+        />
+      )}
+      {confirmTarget && (
+        <ConfirmDialog message="Are you sure you want to delete this? This can't be undone." onConfirm={confirmDeleteAction} onCancel={() => setConfirmTarget(null)} />
+      )}
     </div>
   )
 }
@@ -517,68 +648,150 @@ function renderAppCell(col, a, onUpdate) {
   }
 }
 
-function ApplicationRow({ app: a, columns, isOpen, onToggle, onUpdate, onDelete }) {
-  const colSpan = 2 + columns.length
+function ApplicationModal({ app, onUpdate, onClose }) {
   return (
-    <>
-      <tr className="app-row">
-        <td className="expand-cell" onClick={onToggle}>
-          <span className={'chevron' + (isOpen ? ' open' : '')}>›</span>
-        </td>
-        {columns.map(col => renderAppCell(col, a, onUpdate))}
-        <td><button className="del-btn" title="Delete row" onClick={onDelete}>×</button></td>
-      </tr>
-      {isOpen && (
-        <tr className="detail-row">
-          <td colSpan={colSpan}>
-            <div className="detail-grid">
-              <label>Application link<input type="url" placeholder="paste the link to where you applied" defaultValue={a.link || ''} onBlur={e => onUpdate('link', e.target.value)} /></label>
-              <label>Cover letter link<input type="url" placeholder="paste Google Doc link" defaultValue={a.cover_letter_link || ''} onBlur={e => onUpdate('cover_letter_link', e.target.value)} /></label>
-              <label>Source<input type="text" placeholder="referral, LinkedIn, cold, etc." defaultValue={a.source || ''} onBlur={e => onUpdate('source', e.target.value)} /></label>
-              <label>Salary / comp<input type="text" placeholder="e.g. $70k–85k or n/a" defaultValue={a.salary || ''} onBlur={e => onUpdate('salary', e.target.value)} /></label>
-              <label>Hiring manager<input type="text" defaultValue={a.hiring_manager || ''} onBlur={e => onUpdate('hiring_manager', e.target.value)} /></label>
-              <label>Other connections<input type="text" defaultValue={a.connections || ''} onBlur={e => onUpdate('connections', e.target.value)} /></label>
-              <label>Next action<input type="text" placeholder="e.g. follow up with recruiter" defaultValue={a.next_action || ''} onBlur={e => onUpdate('next_action', e.target.value)} /></label>
-              <label>Follow-up date<input type="date" value={a.follow_up_date || ''} onChange={e => onUpdate('follow_up_date', e.target.value)} /></label>
-              <label>Interview date<input type="date" value={a.interview_date || ''} onChange={e => onUpdate('interview_date', e.target.value)} /></label>
-              <label className="notes-field">Notes<textarea className="conv-note" placeholder="interview prep, red flags, anything else" defaultValue={a.notes || ''} onBlur={e => onUpdate('notes', e.target.value)} /></label>
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title-group">
+            <input className="modal-title-input" type="text" defaultValue={app.company} placeholder="Company" onBlur={e => onUpdate('company', e.target.value)} />
+            <input className="modal-subtitle-input" type="text" defaultValue={app.position} placeholder="Position" onBlur={e => onUpdate('position', e.target.value)} />
+          </div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="detail-grid modal-grid">
+          <label>Location<input type="text" defaultValue={app.location || ''} onBlur={e => onUpdate('location', e.target.value)} /></label>
+          <label>Status
+            <select value={app.status || 'applied'} onChange={e => onUpdate('status', e.target.value)}>
+              {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </label>
+          <label>Priority
+            <select value={app.priority || 'medium'} onChange={e => onUpdate('priority', e.target.value)}>
+              {PRIORITY_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+          </label>
+          <label>Date applied<input type="date" value={app.date_applied || ''} onChange={e => onUpdate('date_applied', e.target.value)} /></label>
+          <label>Application link<input type="url" placeholder="paste the link to where you applied" defaultValue={app.link || ''} onBlur={e => onUpdate('link', e.target.value)} /></label>
+          <label>Cover letter link<input type="url" placeholder="paste Google Doc link" defaultValue={app.cover_letter_link || ''} onBlur={e => onUpdate('cover_letter_link', e.target.value)} /></label>
+          <label>Source<input type="text" placeholder="referral, LinkedIn, cold, etc." defaultValue={app.source || ''} onBlur={e => onUpdate('source', e.target.value)} /></label>
+          <label>Salary / comp<input type="text" placeholder="e.g. $70k–85k or n/a" defaultValue={app.salary || ''} onBlur={e => onUpdate('salary', e.target.value)} /></label>
+          <label>Hiring manager<input type="text" defaultValue={app.hiring_manager || ''} onBlur={e => onUpdate('hiring_manager', e.target.value)} /></label>
+          <label>Other connections<input type="text" defaultValue={app.connections || ''} onBlur={e => onUpdate('connections', e.target.value)} /></label>
+          <label>Next action<input type="text" placeholder="e.g. follow up with recruiter" defaultValue={app.next_action || ''} onBlur={e => onUpdate('next_action', e.target.value)} /></label>
+          <label>Follow-up date<input type="date" value={app.follow_up_date || ''} onChange={e => onUpdate('follow_up_date', e.target.value)} /></label>
+          <label>Interview date<input type="date" value={app.interview_date || ''} onChange={e => onUpdate('interview_date', e.target.value)} /></label>
+          <label className="notes-field">Notes<textarea className="conv-note" placeholder="interview prep, red flags, anything else" defaultValue={app.notes || ''} onBlur={e => onUpdate('notes', e.target.value)} /></label>
+        </div>
+      </div>
+    </div>
   )
 }
 
-function ConversationRow({ convo: c, isOpen, onToggle, onUpdate, onDelete }) {
+function ContactModal({ person, entries, onUpdate, onAddEntry, onClose }) {
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [recommendation, setRecommendation] = useState('')
+  const [notes, setNotes] = useState('')
+
+  function submitEntry() {
+    if (!recommendation.trim() && !notes.trim()) return
+    onAddEntry({ date, recommendation, notes })
+    setRecommendation('')
+    setNotes('')
+  }
+
   return (
-    <>
-      <tr className="app-row">
-        <td className="num-col">
-          <input type="date" value={c.date || ''} onChange={e => onUpdate('date', e.target.value)} />
-        </td>
-        <PersonCell value={c.person} onSave={v => onUpdate('person', v)} onToggle={onToggle} />
-        <EditableCell value={c.context} placeholder="Company" onSave={v => onUpdate('context', v)} />
-        <td>
-          <textarea className="conv-note" placeholder="job leads, advice, intros…" defaultValue={c.recommendation || ''} onBlur={e => onUpdate('recommendation', e.target.value)} />
-        </td>
-        <td>
-          <textarea className="conv-note" placeholder="anything else worth remembering" defaultValue={c.notes || ''} onBlur={e => onUpdate('notes', e.target.value)} />
-        </td>
-        <td><button className="del-btn" title="Delete row" onClick={onDelete}>×</button></td>
-      </tr>
-      {isOpen && (
-        <tr className="detail-row">
-          <td colSpan={6}>
-            <div className="detail-grid">
-              <label>Email<input type="text" placeholder="name@company.com" defaultValue={c.email || ''} onBlur={e => onUpdate('email', e.target.value)} /></label>
-              <label>Phone<input type="text" placeholder="phone number" defaultValue={c.phone || ''} onBlur={e => onUpdate('phone', e.target.value)} /></label>
-              <label>Other contact<input type="text" placeholder="LinkedIn, etc." defaultValue={c.other_contact || ''} onBlur={e => onUpdate('other_contact', e.target.value)} /></label>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title-group">
+            <input className="modal-title-input" type="text" defaultValue={person.name} placeholder="Name" onBlur={e => onUpdate('name', e.target.value)} />
+            <input className="modal-subtitle-input" type="text" defaultValue={person.company} placeholder="Company" onBlur={e => onUpdate('company', e.target.value)} />
+          </div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="detail-grid modal-grid" style={{ paddingBottom: 10 }}>
+          <label>Email<input type="text" placeholder="name@company.com" defaultValue={person.email || ''} onBlur={e => onUpdate('email', e.target.value)} /></label>
+          <label>Phone<input type="text" placeholder="phone number" defaultValue={person.phone || ''} onBlur={e => onUpdate('phone', e.target.value)} /></label>
+          <label>Other contact<input type="text" placeholder="LinkedIn, etc." defaultValue={person.other_contact || ''} onBlur={e => onUpdate('other_contact', e.target.value)} /></label>
+        </div>
+
+        <div className="thread-section">
+          <div className="thread-add">
+            <div className="thread-add-row">
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} />
+              <button className="add-btn" onClick={submitEntry}>+ Log conversation</button>
             </div>
-          </td>
-        </tr>
-      )}
-    </>
+            <textarea className="conv-note" placeholder="What they recommended…" value={recommendation} onChange={e => setRecommendation(e.target.value)} />
+            <textarea className="conv-note" placeholder="Anything else worth remembering…" value={notes} onChange={e => setNotes(e.target.value)} />
+          </div>
+
+          <div className="thread-list">
+            {entries.length === 0 && <p className="thread-empty">No conversations logged yet.</p>}
+            {entries.map(e => (
+              <div key={e.id} className="thread-entry">
+                <div className="thread-entry-date">{e.date || 'No date'}</div>
+                {e.recommendation && <div className="thread-entry-text"><strong>Recommended:</strong> {e.recommendation}</div>}
+                {e.notes && <div className="thread-entry-text">{e.notes}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CompanyNotesModal({ company, notes, onAddNote, onClose }) {
+  const [draft, setDraft] = useState('')
+
+  function submit() {
+    if (!draft.trim()) return
+    onAddNote(draft)
+    setDraft('')
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title-group">
+            <span className="modal-title-static">{company.company || 'Company'}</span>
+            <span className="modal-subtitle-static">Notes</span>
+          </div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="thread-section" style={{ paddingTop: 18 }}>
+          <div className="thread-add">
+            <textarea className="conv-note" placeholder="Add a note…" value={draft} onChange={e => setDraft(e.target.value)} />
+            <button className="add-btn" onClick={submit}>+ Add note</button>
+          </div>
+          <div className="thread-list">
+            {notes.length === 0 && <p className="thread-empty">No notes yet.</p>}
+            {notes.map(n => (
+              <div key={n.id} className="thread-entry">
+                <div className="thread-entry-date">{formatDateTime(n.created_at)}</div>
+                <div className="thread-entry-text">{n.note}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ConfirmDialog({ message, onConfirm, onCancel }) {
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="confirm-box" onClick={e => e.stopPropagation()}>
+        <p>{message}</p>
+        <div className="confirm-actions">
+          <button className="add-btn secondary" onClick={onCancel}>Cancel</button>
+          <button className="add-btn danger" onClick={onConfirm}>Delete</button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -621,7 +834,7 @@ function PositionCell({ value, link, onSave }) {
   )
 }
 
-function PersonCell({ value, onSave, onToggle }) {
+function PersonCell({ value, onSave, onOpenModal }) {
   const [editing, setEditing] = useState(false)
   if (editing) {
     return (
@@ -631,8 +844,8 @@ function PersonCell({ value, onSave, onToggle }) {
     )
   }
   return (
-    <td className="person-cell" onClick={onToggle}>
-      <span className="position-link">{value || 'Name'}</span>
+    <td className="person-cell">
+      <span className="position-link" onClick={onOpenModal}>{value || 'Name'}</span>
       <button className="edit-pencil" onClick={e => { e.stopPropagation(); setEditing(true) }} title="Rename">✎</button>
     </td>
   )
