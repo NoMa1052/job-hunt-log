@@ -612,3 +612,77 @@ button.add-btn.danger:hover { background: #6f3020; }
   margin-bottom: 4px;
 }
 .thread-entry-text { font-size: 13px; line-height: 1.5; color: var(--ink); margin-bottom: 3px; }
+
+.header-right { display: flex; align-items: center; gap: 18px; }
+.sign-out-btn { padding: 7px 12px; font-size: 11px; }
+
+.auth-loading { color: var(--ink-soft); font-size: 13px; padding: 40px 0; text-align: center; }
+
+.auth-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.auth-card {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 32px 28px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+}
+
+.auth-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+.auth-sub { font-size: 13px; color: var(--ink-soft); margin: 0 0 22px; }
+
+.auth-form { display: flex; flex-direction: column; gap: 14px; }
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+.auth-form input {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 9px 10px;
+  border-radius: var(--radius);
+}
+.auth-form input:focus { outline: none; box-shadow: inset 0 0 0 1px var(--steel); background: #fff; }
+.auth-form button { margin-top: 4px; }
+
+.auth-error { color: var(--red); font-size: 12px; margin: 0; }
+.auth-info { color: var(--green); font-size: 12px; margin: 0; }
+
+.auth-toggle {
+  background: none;
+  border: none;
+  color: var(--steel);
+  font-size: 12px;
+  cursor: pointer;
+  margin-top: 16px;
+  padding: 0;
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .header-right { flex-direction: column; align-items: flex-end; gap: 10px; }
+}

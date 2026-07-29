@@ -75,6 +75,7 @@ function formatDateTime(ts) {
 }
 
 export default function App() {
+  const [session, setSession] = useState(undefined)
   const [tab, setTab] = useState('applications')
   const [applications, setApplications] = useState([])
   const [people, setPeople] = useState([])
@@ -98,7 +99,15 @@ export default function App() {
 
   const dragColIdxRef = useRef(null)
 
-  useEffect(() => { loadApplications(); loadPeople(); loadEntries(); loadCompanies(); loadCompanyNotes() }, [])
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session))
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
+    return () => listener.subscription.unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    if (session) { loadApplications(); loadPeople(); loadEntries(); loadCompanies(); loadCompanyNotes() }
+  }, [session])
   useEffect(() => { saveLocal('jhl-col-order', columnOrder) }, [columnOrder])
   useEffect(() => { saveLocal('jhl-hidden-cols', [...hiddenCols]) }, [hiddenCols])
   useEffect(() => { saveLocal('jhl-col-filters', colFilters) }, [colFilters])
@@ -339,17 +348,27 @@ export default function App() {
   const contactPerson = contactPersonId ? people.find(p => p.id === contactPersonId) : null
   const notesCompany = notesCompanyId ? companies.find(c => c.id === notesCompanyId) : null
 
+  if (session === undefined) {
+    return <div className="wrap"><p className="auth-loading">Loading…</p></div>
+  }
+  if (session === null) {
+    return <AuthScreen />
+  }
+
   return (
     <div className="wrap">
       <h2 className="sr-only">Job hunt tracker with an applications ledger, a networking conversation log, and a companies watchlist.</h2>
 
       <header>
         <h1>Job Hunt Log<span>Applications &amp; networking, operations style</span></h1>
-        <div className="tally">
-          <TallyItem num={applications.length} label="Applied" />
-          <TallyItem num={counts.screen + counts.interview} label="In process" />
-          <TallyItem num={counts.offer} label="Offers" />
-          <TallyItem num={active} label="Active" />
+        <div className="header-right">
+          <div className="tally">
+            <TallyItem num={applications.length} label="Applied" />
+            <TallyItem num={counts.screen + counts.interview} label="In process" />
+            <TallyItem num={counts.offer} label="Offers" />
+            <TallyItem num={active} label="Active" />
+          </div>
+          <button className="add-btn secondary sign-out-btn" onClick={() => supabase.auth.signOut()}>Sign out</button>
         </div>
       </header>
 
@@ -646,6 +665,50 @@ function renderAppCell(col, a, onUpdate) {
     default:
       return <td key={col.key}></td>
   }
+}
+
+function AuthScreen() {
+  const [mode, setMode] = useState('signin')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function submit(e) {
+    e.preventDefault()
+    setError(''); setInfo(''); setLoading(true)
+    if (mode === 'signin') {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) setError(error.message)
+    } else {
+      const { error } = await supabase.auth.signUp({ email, password })
+      if (error) setError(error.message)
+      else setInfo('Account created. Check your email to confirm it, then sign in.')
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div className="auth-wrap">
+      <div className="auth-card">
+        <h1 className="auth-title">Job Hunt Log</h1>
+        <p className="auth-sub">{mode === 'signin' ? 'Sign in to your tracker' : 'Create an account'}</p>
+        <form onSubmit={submit} className="auth-form">
+          <label>Email<input type="email" required value={email} onChange={e => setEmail(e.target.value)} /></label>
+          <label>Password<input type="password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)} /></label>
+          {error && <p className="auth-error">{error}</p>}
+          {info && <p className="auth-info">{info}</p>}
+          <button className="add-btn" type="submit" disabled={loading}>
+            {loading ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
+          </button>
+        </form>
+        <button className="auth-toggle" onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); setInfo('') }}>
+          {mode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function ApplicationModal({ app, onUpdate, onClose }) {
