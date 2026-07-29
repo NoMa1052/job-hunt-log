@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from './supabaseClient'
 
 const STATUS_OPTIONS = [
@@ -38,7 +38,6 @@ function optionClass(list, value, fallback) {
   const m = list.find(s => s.value === value)
   return m ? m.cls : fallback
 }
-
 function loadLocal(key, fallback) {
   try {
     const raw = localStorage.getItem(key)
@@ -48,7 +47,6 @@ function loadLocal(key, fallback) {
 function saveLocal(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)) } catch (e) { /* ignore */ }
 }
-
 function csvEscape(v) {
   const s = v === null || v === undefined ? '' : String(v)
   if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"'
@@ -56,9 +54,7 @@ function csvEscape(v) {
 }
 function toCSV(headers, rows) {
   const lines = [headers.map(h => csvEscape(h.label)).join(',')]
-  rows.forEach(r => {
-    lines.push(headers.map(h => csvEscape(h.value ? h.value(r) : r[h.key])).join(','))
-  })
+  rows.forEach(r => { lines.push(headers.map(h => csvEscape(h.value ? h.value(r) : r[h.key])).join(',')) })
   return lines.join('\n')
 }
 function downloadCSV(filename, csv) {
@@ -86,8 +82,7 @@ export default function App() {
   const [hiddenCols, setHiddenCols] = useState(() => new Set(loadLocal('jhl-hidden-cols', DEFAULT_HIDDEN)))
   const [colFilters, setColFilters] = useState(() => loadLocal('jhl-col-filters', {}))
   const [openFilterCol, setOpenFilterCol] = useState(null)
-  const [addColOpen, setAddColOpen] = useState(false)
-  const popoverRef = useRef(null)
+  const [manageColsOpen, setManageColsOpen] = useState(false)
 
   useEffect(() => { loadApplications(); loadConversations(); loadCompanies() }, [])
   useEffect(() => { saveLocal('jhl-col-order', columnOrder) }, [columnOrder])
@@ -96,9 +91,9 @@ export default function App() {
 
   useEffect(() => {
     function onClickOutside(e) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
+      if (!e.target.closest('.popover') && !e.target.closest('.popover-wrap')) {
         setOpenFilterCol(null)
-        setAddColOpen(false)
+        setManageColsOpen(false)
       }
     }
     document.addEventListener('mousedown', onClickOutside)
@@ -199,33 +194,18 @@ export default function App() {
       d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
   }
 
-  // --- column drag/reorder/hide/filter ---
-  const draggedKeyRef = useRef(null)
-  function onColDragStart(key) { draggedKeyRef.current = key }
-  function onColDragOver(e) { e.preventDefault() }
-  function onColDrop(targetKey) {
-    const dragged = draggedKeyRef.current
-    if (!dragged || dragged === targetKey) return
+  function hideColumn(key) { setHiddenCols(prev => new Set(prev).add(key)) }
+  function showColumn(key) { setHiddenCols(prev => { const next = new Set(prev); next.delete(key); return next }) }
+  function moveColumn(idx, dir) {
     setColumnOrder(prev => {
-      const arr = prev.filter(k => k !== dragged)
-      const idx = arr.indexOf(targetKey)
-      arr.splice(idx, 0, dragged)
+      const arr = [...prev]
+      const newIdx = idx + dir
+      if (newIdx < 0 || newIdx >= arr.length) return prev
+      ;[arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]]
       return arr
     })
   }
-  function hideColumn(key) {
-    setHiddenCols(prev => new Set(prev).add(key))
-  }
-  function showColumn(key) {
-    setHiddenCols(prev => {
-      const next = new Set(prev)
-      next.delete(key)
-      return next
-    })
-  }
-  function setTextFilter(key, value) {
-    setColFilters(prev => ({ ...prev, [key]: value }))
-  }
+  function setTextFilter(key, value) { setColFilters(prev => ({ ...prev, [key]: value })) }
   function toggleSelectFilter(key, value, options) {
     setColFilters(prev => {
       const current = prev[key] ? [...prev[key]] : options.map(o => o.value)
@@ -234,9 +214,13 @@ export default function App() {
       return { ...prev, [key]: current }
     })
   }
+  function hasActiveFilter(col) {
+    if (col.type === 'text') return !!(colFilters[col.key] && colFilters[col.key].trim())
+    if (col.type === 'select') return !!(colFilters[col.key] && colFilters[col.key].length < col.options.length)
+    return false
+  }
 
   const visibleColumns = columnOrder.filter(k => !hiddenCols.has(k)).map(k => ALL_COLUMNS.find(c => c.key === k)).filter(Boolean)
-  const hiddenColumnDefs = [...hiddenCols].map(k => ALL_COLUMNS.find(c => c.key === k)).filter(Boolean)
 
   function passesFilters(a) {
     for (const col of ALL_COLUMNS) {
@@ -313,78 +297,65 @@ export default function App() {
       {tab === 'applications' && (
         <div className="panel">
           <div className="panel-head">
-            <p>Drag a column header to reorder it, use × to hide it, filter right in the header. Click the position to open where you applied.</p>
+            <p>Click a column name to filter it. Click the position to open where you applied.</p>
             <div className="panel-head-btns">
+              <div className="popover-wrap">
+                <button className="add-btn secondary" onClick={() => setManageColsOpen(!manageColsOpen)}>Columns</button>
+                {manageColsOpen && (
+                  <div className="popover manage-cols-popover">
+                    {columnOrder.map((key, idx) => {
+                      const col = ALL_COLUMNS.find(c => c.key === key)
+                      if (!col) return null
+                      return (
+                        <div key={key} className="manage-col-row">
+                          <label className="popover-row" style={{ flex: 1 }}>
+                            <input type="checkbox" checked={!hiddenCols.has(key)} onChange={() => hiddenCols.has(key) ? showColumn(key) : hideColumn(key)} />
+                            {col.label}
+                          </label>
+                          <button className="col-move-btn" disabled={idx === 0} onClick={() => moveColumn(idx, -1)}>↑</button>
+                          <button className="col-move-btn" disabled={idx === columnOrder.length - 1} onClick={() => moveColumn(idx, 1)}>↓</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
               <button className="add-btn secondary" onClick={exportApplications}>Export CSV</button>
               <button className="add-btn" onClick={addApplication}>+ Add application</button>
             </div>
           </div>
 
-          <div className="table-wrap" ref={popoverRef}>
+          <div className="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th style={{ width: 24 }}></th>
                   {visibleColumns.map(col => (
-                    <th
-                      key={col.key}
-                      draggable
-                      onDragStart={() => onColDragStart(col.key)}
-                      onDragOver={onColDragOver}
-                      onDrop={() => onColDrop(col.key)}
-                    >
-                      <div className="col-head">
-                        <span className="drag-handle" title="Drag to reorder">⋮⋮</span>
-                        <span className="col-label">{col.label}</span>
-                        <button className="col-hide-btn" onClick={() => hideColumn(col.key)} title="Hide column">×</button>
-                      </div>
-                      {col.type === 'text' && (
-                        <input
-                          className="col-filter"
-                          placeholder="filter…"
-                          value={colFilters[col.key] || ''}
-                          onChange={e => setTextFilter(col.key, e.target.value)}
-                        />
-                      )}
-                      {col.type === 'select' && (
+                    <th key={col.key}>
+                      {(col.type === 'text' || col.type === 'select') ? (
                         <div className="popover-wrap">
-                          <button className="col-filter-btn" onClick={() => setOpenFilterCol(openFilterCol === col.key ? null : col.key)}>
-                            Filter{colFilters[col.key] && colFilters[col.key].length < col.options.length ? ` (${colFilters[col.key].length})` : ''}
+                          <button className={'col-label-btn' + (hasActiveFilter(col) ? ' active-filter' : '')} onClick={() => setOpenFilterCol(openFilterCol === col.key ? null : col.key)}>
+                            {col.label}{hasActiveFilter(col) && <span className="filter-dot" />}
                           </button>
                           {openFilterCol === col.key && (
                             <div className="popover">
-                              {col.options.map(o => (
+                              {col.type === 'text' && (
+                                <input autoFocus className="col-filter" placeholder="filter…" value={colFilters[col.key] || ''} onChange={e => setTextFilter(col.key, e.target.value)} />
+                              )}
+                              {col.type === 'select' && col.options.map(o => (
                                 <label key={o.value} className="popover-row">
-                                  <input
-                                    type="checkbox"
-                                    checked={!colFilters[col.key] || colFilters[col.key].includes(o.value)}
-                                    onChange={() => toggleSelectFilter(col.key, o.value, col.options)}
-                                  />
+                                  <input type="checkbox" checked={!colFilters[col.key] || colFilters[col.key].includes(o.value)} onChange={() => toggleSelectFilter(col.key, o.value, col.options)} />
                                   {o.label}
                                 </label>
                               ))}
                             </div>
                           )}
                         </div>
+                      ) : (
+                        <span className="col-label-plain">{col.label}</span>
                       )}
                     </th>
                   ))}
-                  {hiddenColumnDefs.length > 0 && (
-                    <th style={{ width: 40 }}>
-                      <div className="popover-wrap">
-                        <button className="col-filter-btn" onClick={() => setAddColOpen(!addColOpen)} title="Show a hidden column">+</button>
-                        {addColOpen && (
-                          <div className="popover">
-                            {hiddenColumnDefs.map(c => (
-                              <label key={c.key} className="popover-row" onClick={() => showColumn(c.key)}>
-                                + {c.label}
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </th>
-                  )}
                   <th></th>
                 </tr>
               </thead>
@@ -394,7 +365,6 @@ export default function App() {
                     key={a.id}
                     app={a}
                     columns={visibleColumns}
-                    extraTd={hiddenColumnDefs.length > 0}
                     isOpen={expandedApps.has(a.id)}
                     onToggle={() => toggleSet(setExpandedApps, a.id)}
                     onUpdate={(field, value) => updateApplication(a.id, field, value)}
@@ -547,8 +517,8 @@ function renderAppCell(col, a, onUpdate) {
   }
 }
 
-function ApplicationRow({ app: a, columns, extraTd, isOpen, onToggle, onUpdate, onDelete }) {
-  const colSpan = 2 + columns.length + (extraTd ? 1 : 0)
+function ApplicationRow({ app: a, columns, isOpen, onToggle, onUpdate, onDelete }) {
+  const colSpan = 2 + columns.length
   return (
     <>
       <tr className="app-row">
@@ -556,7 +526,6 @@ function ApplicationRow({ app: a, columns, extraTd, isOpen, onToggle, onUpdate, 
           <span className={'chevron' + (isOpen ? ' open' : '')}>›</span>
         </td>
         {columns.map(col => renderAppCell(col, a, onUpdate))}
-        {extraTd && <td></td>}
         <td><button className="del-btn" title="Delete row" onClick={onDelete}>×</button></td>
       </tr>
       {isOpen && (
@@ -588,7 +557,7 @@ function ConversationRow({ convo: c, isOpen, onToggle, onUpdate, onDelete }) {
         <td className="num-col">
           <input type="date" value={c.date || ''} onChange={e => onUpdate('date', e.target.value)} />
         </td>
-        <PersonCell value={c.person} onSave={v => onUpdate('person', v)} onToggle={onToggle} isOpen={isOpen} />
+        <PersonCell value={c.person} onSave={v => onUpdate('person', v)} onToggle={onToggle} />
         <EditableCell value={c.context} placeholder="Company" onSave={v => onUpdate('context', v)} />
         <td>
           <textarea className="conv-note" placeholder="job leads, advice, intros…" defaultValue={c.recommendation || ''} onBlur={e => onUpdate('recommendation', e.target.value)} />
@@ -624,12 +593,7 @@ function TallyItem({ num, label }) {
 
 function EditableCell({ value, placeholder, onSave }) {
   return (
-    <td
-      contentEditable
-      suppressContentEditableWarning
-      data-placeholder={placeholder}
-      onBlur={e => onSave(e.target.textContent)}
-    >
+    <td contentEditable suppressContentEditableWarning data-placeholder={placeholder} onBlur={e => onSave(e.target.textContent)}>
       {value || ''}
     </td>
   )
@@ -637,9 +601,7 @@ function EditableCell({ value, placeholder, onSave }) {
 
 function PositionCell({ value, link, onSave }) {
   const [editing, setEditing] = useState(false)
-
   if (!link) return <EditableCell value={value} placeholder="Position" onSave={onSave} />
-
   if (editing) {
     return (
       <td contentEditable suppressContentEditableWarning autoFocus onBlur={e => { onSave(e.target.textContent); setEditing(false) }}>
@@ -647,18 +609,12 @@ function PositionCell({ value, link, onSave }) {
       </td>
     )
   }
-
   return (
     <td>
-      <a
-        className="position-link"
-        href={link}
-        target="_blank"
-        rel="noopener noreferrer"
+      <a className="position-link" href={link} target="_blank" rel="noopener noreferrer"
         onClick={e => e.stopPropagation()}
         onDoubleClick={e => { e.preventDefault(); setEditing(true) }}
-        title="Opens where you applied — double-click to rename"
-      >
+        title="Opens where you applied — double-click to rename">
         {value || 'Position'}
       </a>
     </td>
@@ -667,7 +623,6 @@ function PositionCell({ value, link, onSave }) {
 
 function PersonCell({ value, onSave, onToggle }) {
   const [editing, setEditing] = useState(false)
-
   if (editing) {
     return (
       <td contentEditable suppressContentEditableWarning autoFocus onBlur={e => { onSave(e.target.textContent); setEditing(false) }}>
@@ -675,7 +630,6 @@ function PersonCell({ value, onSave, onToggle }) {
       </td>
     )
   }
-
   return (
     <td className="person-cell" onClick={onToggle}>
       <span className="position-link">{value || 'Name'}</span>
