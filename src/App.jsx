@@ -16,17 +16,23 @@ const PRIORITY_OPTIONS = [
   { value: 'low', label: 'Low', cls: 'pr-low' }
 ]
 
-const OPTIONAL_COLUMNS = [
-  { key: 'location', label: 'Location' },
-  { key: 'date_applied', label: 'Applied' },
-  { key: 'status', label: 'Status' },
-  { key: 'priority', label: 'Priority' },
-  { key: 'source', label: 'Source' },
-  { key: 'salary', label: 'Salary' },
-  { key: 'follow_up_date', label: 'Follow-up' },
-  { key: 'letter', label: 'Letter' }
+const ALL_COLUMNS = [
+  { key: 'company', label: 'Company', type: 'text' },
+  { key: 'position', label: 'Position', type: 'text' },
+  { key: 'location', label: 'Location', type: 'text' },
+  { key: 'date_applied', label: 'Applied', type: 'date' },
+  { key: 'status', label: 'Status', type: 'select', options: STATUS_OPTIONS },
+  { key: 'priority', label: 'Priority', type: 'select', options: PRIORITY_OPTIONS },
+  { key: 'source', label: 'Source', type: 'text' },
+  { key: 'salary', label: 'Salary', type: 'text' },
+  { key: 'follow_up_date', label: 'Follow-up', type: 'date' },
+  { key: 'interview_date', label: 'Interview', type: 'date' },
+  { key: 'hiring_manager', label: 'Hiring mgr', type: 'text' },
+  { key: 'connections', label: 'Connections', type: 'text' },
+  { key: 'letter', label: 'Letter', type: 'icon' }
 ]
-const DEFAULT_VISIBLE = OPTIONAL_COLUMNS.map(c => c.key)
+const DEFAULT_ORDER = ALL_COLUMNS.map(c => c.key)
+const DEFAULT_HIDDEN = ['interview_date', 'hiring_manager', 'connections']
 
 function optionClass(list, value, fallback) {
   const m = list.find(s => s.value === value)
@@ -36,11 +42,35 @@ function optionClass(list, value, fallback) {
 function loadLocal(key, fallback) {
   try {
     const raw = localStorage.getItem(key)
-    return raw ? JSON.parse(raw) : fallback
+    return raw !== null ? JSON.parse(raw) : fallback
   } catch (e) { return fallback }
 }
 function saveLocal(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)) } catch (e) { /* ignore */ }
+}
+
+function csvEscape(v) {
+  const s = v === null || v === undefined ? '' : String(v)
+  if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"'
+  return s
+}
+function toCSV(headers, rows) {
+  const lines = [headers.map(h => csvEscape(h.label)).join(',')]
+  rows.forEach(r => {
+    lines.push(headers.map(h => csvEscape(h.value ? h.value(r) : r[h.key])).join(','))
+  })
+  return lines.join('\n')
+}
+function downloadCSV(filename, csv) {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 }
 
 export default function App() {
@@ -52,26 +82,24 @@ export default function App() {
   const [expandedConvos, setExpandedConvos] = useState(new Set())
   const [saving, setSaving] = useState('')
 
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState(() => new Set(loadLocal('jhl-status-filter', STATUS_OPTIONS.map(s => s.value))))
-  const [priorityFilter, setPriorityFilter] = useState(() => new Set(loadLocal('jhl-priority-filter', PRIORITY_OPTIONS.map(p => p.value))))
-  const [visibleCols, setVisibleCols] = useState(() => new Set(loadLocal('jhl-visible-cols', DEFAULT_VISIBLE)))
-  const [openPopover, setOpenPopover] = useState(null)
+  const [columnOrder, setColumnOrder] = useState(() => loadLocal('jhl-col-order', DEFAULT_ORDER))
+  const [hiddenCols, setHiddenCols] = useState(() => new Set(loadLocal('jhl-hidden-cols', DEFAULT_HIDDEN)))
+  const [colFilters, setColFilters] = useState(() => loadLocal('jhl-col-filters', {}))
+  const [openFilterCol, setOpenFilterCol] = useState(null)
+  const [addColOpen, setAddColOpen] = useState(false)
   const popoverRef = useRef(null)
 
-  useEffect(() => {
-    loadApplications()
-    loadConversations()
-    loadCompanies()
-  }, [])
-
-  useEffect(() => { saveLocal('jhl-status-filter', [...statusFilter]) }, [statusFilter])
-  useEffect(() => { saveLocal('jhl-priority-filter', [...priorityFilter]) }, [priorityFilter])
-  useEffect(() => { saveLocal('jhl-visible-cols', [...visibleCols]) }, [visibleCols])
+  useEffect(() => { loadApplications(); loadConversations(); loadCompanies() }, [])
+  useEffect(() => { saveLocal('jhl-col-order', columnOrder) }, [columnOrder])
+  useEffect(() => { saveLocal('jhl-hidden-cols', [...hiddenCols]) }, [hiddenCols])
+  useEffect(() => { saveLocal('jhl-col-filters', colFilters) }, [colFilters])
 
   useEffect(() => {
     function onClickOutside(e) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target)) setOpenPopover(null)
+      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
+        setOpenFilterCol(null)
+        setAddColOpen(false)
+      }
     }
     document.addEventListener('mousedown', onClickOutside)
     return () => document.removeEventListener('mousedown', onClickOutside)
@@ -171,20 +199,96 @@ export default function App() {
       d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
   }
 
+  // --- column drag/reorder/hide/filter ---
+  const draggedKeyRef = useRef(null)
+  function onColDragStart(key) { draggedKeyRef.current = key }
+  function onColDragOver(e) { e.preventDefault() }
+  function onColDrop(targetKey) {
+    const dragged = draggedKeyRef.current
+    if (!dragged || dragged === targetKey) return
+    setColumnOrder(prev => {
+      const arr = prev.filter(k => k !== dragged)
+      const idx = arr.indexOf(targetKey)
+      arr.splice(idx, 0, dragged)
+      return arr
+    })
+  }
+  function hideColumn(key) {
+    setHiddenCols(prev => new Set(prev).add(key))
+  }
+  function showColumn(key) {
+    setHiddenCols(prev => {
+      const next = new Set(prev)
+      next.delete(key)
+      return next
+    })
+  }
+  function setTextFilter(key, value) {
+    setColFilters(prev => ({ ...prev, [key]: value }))
+  }
+  function toggleSelectFilter(key, value, options) {
+    setColFilters(prev => {
+      const current = prev[key] ? [...prev[key]] : options.map(o => o.value)
+      const idx = current.indexOf(value)
+      if (idx >= 0) current.splice(idx, 1); else current.push(value)
+      return { ...prev, [key]: current }
+    })
+  }
+
+  const visibleColumns = columnOrder.filter(k => !hiddenCols.has(k)).map(k => ALL_COLUMNS.find(c => c.key === k)).filter(Boolean)
+  const hiddenColumnDefs = [...hiddenCols].map(k => ALL_COLUMNS.find(c => c.key === k)).filter(Boolean)
+
+  function passesFilters(a) {
+    for (const col of ALL_COLUMNS) {
+      if (col.type === 'text') {
+        const f = (colFilters[col.key] || '').trim().toLowerCase()
+        if (f && !(a[col.key] || '').toString().toLowerCase().includes(f)) return false
+      } else if (col.type === 'select') {
+        const allowed = colFilters[col.key]
+        if (allowed && allowed.length < col.options.length) {
+          const val = a[col.key] || col.options[0].value
+          if (!allowed.includes(val)) return false
+        }
+      }
+    }
+    return true
+  }
+
   const counts = { applied: 0, screen: 0, interview: 0, offer: 0, rejected: 0, withdrawn: 0 }
   applications.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++ })
   const active = applications.length - counts.rejected - counts.withdrawn
+  const filteredApplications = applications.filter(passesFilters)
 
-  const filteredApplications = applications.filter(a => {
-    if (!statusFilter.has(a.status || 'applied')) return false
-    if (!priorityFilter.has(a.priority || 'medium')) return false
-    if (search.trim()) {
-      const q = search.trim().toLowerCase()
-      const hay = [a.company, a.position, a.location].join(' ').toLowerCase()
-      if (!hay.includes(q)) return false
-    }
-    return true
-  })
+  function exportApplications() {
+    const headers = [
+      { key: 'company', label: 'Company' }, { key: 'position', label: 'Position' },
+      { key: 'link', label: 'Application Link' }, { key: 'cover_letter_link', label: 'Cover Letter Link' },
+      { key: 'location', label: 'Location' }, { key: 'date_applied', label: 'Date Applied' },
+      { key: 'status', label: 'Status' }, { key: 'priority', label: 'Priority' },
+      { key: 'source', label: 'Source' }, { key: 'salary', label: 'Salary' },
+      { key: 'hiring_manager', label: 'Hiring Manager' }, { key: 'connections', label: 'Other Connections' },
+      { key: 'next_action', label: 'Next Action' }, { key: 'follow_up_date', label: 'Follow-up Date' },
+      { key: 'interview_date', label: 'Interview Date' }, { key: 'notes', label: 'Notes' }
+    ]
+    downloadCSV('applications.csv', toCSV(headers, filteredApplications))
+  }
+  function exportConversations() {
+    const headers = [
+      { key: 'date', label: 'Date' }, { key: 'person', label: 'Person' }, { key: 'context', label: 'Company/Context' },
+      { key: 'recommendation', label: 'Recommendation' }, { key: 'notes', label: 'Notes' },
+      { key: 'email', label: 'Email' }, { key: 'phone', label: 'Phone' }, { key: 'other_contact', label: 'Other Contact' }
+    ]
+    downloadCSV('conversations.csv', toCSV(headers, conversations))
+  }
+  function exportCompanies() {
+    const headers = [
+      { key: 'company', label: 'Company' }, { key: 'careers_link', label: 'Careers Link' },
+      { key: 'applied_count', label: 'Applied Count', value: r => appliedCountFor(r.company) },
+      { key: 'last_clicked', label: 'Last Clicked', value: r => r.last_clicked || '' },
+      { key: 'notes', label: 'Notes' }
+    ]
+    downloadCSV('companies.csv', toCSV(headers, companies))
+  }
 
   return (
     <div className="wrap">
@@ -209,80 +313,78 @@ export default function App() {
       {tab === 'applications' && (
         <div className="panel">
           <div className="panel-head">
-            <p>Click a row to see source, salary, contacts, and notes. Click the position to open where you applied.</p>
-            <button className="add-btn" onClick={addApplication}>+ Add application</button>
-          </div>
-
-          <div className="toolbar" ref={popoverRef}>
-            <input
-              className="search-input"
-              type="text"
-              placeholder="Search company, position, location…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-            <div className="popover-wrap">
-              <button className="toolbar-btn" onClick={() => setOpenPopover(openPopover === 'status' ? null : 'status')}>
-                Status {statusFilter.size < STATUS_OPTIONS.length ? `(${statusFilter.size})` : ''}
-              </button>
-              {openPopover === 'status' && (
-                <div className="popover">
-                  {STATUS_OPTIONS.map(s => (
-                    <label key={s.value} className="popover-row">
-                      <input type="checkbox" checked={statusFilter.has(s.value)} onChange={() => toggleSet(setStatusFilter, s.value)} />
-                      {s.label}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="popover-wrap">
-              <button className="toolbar-btn" onClick={() => setOpenPopover(openPopover === 'priority' ? null : 'priority')}>
-                Priority {priorityFilter.size < PRIORITY_OPTIONS.length ? `(${priorityFilter.size})` : ''}
-              </button>
-              {openPopover === 'priority' && (
-                <div className="popover">
-                  {PRIORITY_OPTIONS.map(p => (
-                    <label key={p.value} className="popover-row">
-                      <input type="checkbox" checked={priorityFilter.has(p.value)} onChange={() => toggleSet(setPriorityFilter, p.value)} />
-                      {p.label}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="popover-wrap">
-              <button className="toolbar-btn" onClick={() => setOpenPopover(openPopover === 'columns' ? null : 'columns')}>
-                Columns
-              </button>
-              {openPopover === 'columns' && (
-                <div className="popover">
-                  {OPTIONAL_COLUMNS.map(c => (
-                    <label key={c.key} className="popover-row">
-                      <input type="checkbox" checked={visibleCols.has(c.key)} onChange={() => toggleSet(setVisibleCols, c.key)} />
-                      {c.label}
-                    </label>
-                  ))}
-                </div>
-              )}
+            <p>Drag a column header to reorder it, use × to hide it, filter right in the header. Click the position to open where you applied.</p>
+            <div className="panel-head-btns">
+              <button className="add-btn secondary" onClick={exportApplications}>Export CSV</button>
+              <button className="add-btn" onClick={addApplication}>+ Add application</button>
             </div>
           </div>
 
-          <div className="table-wrap">
+          <div className="table-wrap" ref={popoverRef}>
             <table>
               <thead>
                 <tr>
                   <th style={{ width: 24 }}></th>
-                  <th>Company</th>
-                  <th>Position</th>
-                  {visibleCols.has('location') && <th>Location</th>}
-                  {visibleCols.has('date_applied') && <th>Applied</th>}
-                  {visibleCols.has('status') && <th>Status</th>}
-                  {visibleCols.has('priority') && <th>Priority</th>}
-                  {visibleCols.has('source') && <th>Source</th>}
-                  {visibleCols.has('salary') && <th>Salary</th>}
-                  {visibleCols.has('follow_up_date') && <th>Follow-up</th>}
-                  {visibleCols.has('letter') && <th style={{ width: 60 }}>Letter</th>}
+                  {visibleColumns.map(col => (
+                    <th
+                      key={col.key}
+                      draggable
+                      onDragStart={() => onColDragStart(col.key)}
+                      onDragOver={onColDragOver}
+                      onDrop={() => onColDrop(col.key)}
+                    >
+                      <div className="col-head">
+                        <span className="drag-handle" title="Drag to reorder">⋮⋮</span>
+                        <span className="col-label">{col.label}</span>
+                        <button className="col-hide-btn" onClick={() => hideColumn(col.key)} title="Hide column">×</button>
+                      </div>
+                      {col.type === 'text' && (
+                        <input
+                          className="col-filter"
+                          placeholder="filter…"
+                          value={colFilters[col.key] || ''}
+                          onChange={e => setTextFilter(col.key, e.target.value)}
+                        />
+                      )}
+                      {col.type === 'select' && (
+                        <div className="popover-wrap">
+                          <button className="col-filter-btn" onClick={() => setOpenFilterCol(openFilterCol === col.key ? null : col.key)}>
+                            Filter{colFilters[col.key] && colFilters[col.key].length < col.options.length ? ` (${colFilters[col.key].length})` : ''}
+                          </button>
+                          {openFilterCol === col.key && (
+                            <div className="popover">
+                              {col.options.map(o => (
+                                <label key={o.value} className="popover-row">
+                                  <input
+                                    type="checkbox"
+                                    checked={!colFilters[col.key] || colFilters[col.key].includes(o.value)}
+                                    onChange={() => toggleSelectFilter(col.key, o.value, col.options)}
+                                  />
+                                  {o.label}
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </th>
+                  ))}
+                  {hiddenColumnDefs.length > 0 && (
+                    <th style={{ width: 40 }}>
+                      <div className="popover-wrap">
+                        <button className="col-filter-btn" onClick={() => setAddColOpen(!addColOpen)} title="Show a hidden column">+</button>
+                        {addColOpen && (
+                          <div className="popover">
+                            {hiddenColumnDefs.map(c => (
+                              <label key={c.key} className="popover-row" onClick={() => showColumn(c.key)}>
+                                + {c.label}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </th>
+                  )}
                   <th></th>
                 </tr>
               </thead>
@@ -291,7 +393,8 @@ export default function App() {
                   <ApplicationRow
                     key={a.id}
                     app={a}
-                    visibleCols={visibleCols}
+                    columns={visibleColumns}
+                    extraTd={hiddenColumnDefs.length > 0}
                     isOpen={expandedApps.has(a.id)}
                     onToggle={() => toggleSet(setExpandedApps, a.id)}
                     onUpdate={(field, value) => updateApplication(a.id, field, value)}
@@ -303,7 +406,7 @@ export default function App() {
           </div>
           {filteredApplications.length === 0 && (
             <div className="empty-state">
-              {applications.length === 0 ? 'No applications logged yet. Add your first one above.' : 'Nothing matches the current search/filters.'}
+              {applications.length === 0 ? 'No applications logged yet. Add your first one above.' : 'Nothing matches the current filters.'}
             </div>
           )}
         </div>
@@ -312,14 +415,16 @@ export default function App() {
       {tab === 'conversations' && (
         <div className="panel">
           <div className="panel-head">
-            <p>Click a row to add contact info. Log what they recommended and anything worth remembering.</p>
-            <button className="add-btn" onClick={addConversation}>+ Add conversation</button>
+            <p>Click a person's name to see and edit their contact info.</p>
+            <div className="panel-head-btns">
+              <button className="add-btn secondary" onClick={exportConversations}>Export CSV</button>
+              <button className="add-btn" onClick={addConversation}>+ Add conversation</button>
+            </div>
           </div>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 24 }}></th>
                   <th style={{ width: 100 }}>Date</th>
                   <th style={{ width: 150 }}>Person</th>
                   <th style={{ width: 150 }}>Company / context</th>
@@ -350,7 +455,10 @@ export default function App() {
         <div className="panel">
           <div className="panel-head">
             <p>Places you're watching, researching, or were pointed toward.</p>
-            <button className="add-btn" onClick={addCompany}>+ Add company</button>
+            <div className="panel-head-btns">
+              <button className="add-btn secondary" onClick={exportCompanies}>Export CSV</button>
+              <button className="add-btn" onClick={addCompany}>+ Add company</button>
+            </div>
           </div>
           <div className="table-wrap">
             <table>
@@ -396,50 +504,59 @@ export default function App() {
   )
 }
 
-function ApplicationRow({ app: a, visibleCols, isOpen, onToggle, onUpdate, onDelete }) {
-  const colSpan = 4 + visibleCols.size
+function renderAppCell(col, a, onUpdate) {
+  switch (col.key) {
+    case 'company':
+      return <EditableCell key="company" value={a.company} placeholder="Company" onSave={v => onUpdate('company', v)} />
+    case 'position':
+      return <PositionCell key="position" value={a.position} link={a.link} onSave={v => onUpdate('position', v)} />
+    case 'location': case 'source': case 'salary': case 'hiring_manager': case 'connections':
+      return <EditableCell key={col.key} value={a[col.key]} placeholder="—" onSave={v => onUpdate(col.key, v)} />
+    case 'date_applied': case 'follow_up_date': case 'interview_date':
+      return (
+        <td key={col.key} className="num-col">
+          <input type="date" value={a[col.key] || ''} onChange={e => onUpdate(col.key, e.target.value)} />
+        </td>
+      )
+    case 'status':
+      return (
+        <td key="status">
+          <select className={'status-select ' + optionClass(STATUS_OPTIONS, a.status, 'st-applied')} value={a.status || 'applied'} onChange={e => onUpdate('status', e.target.value)}>
+            {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        </td>
+      )
+    case 'priority':
+      return (
+        <td key="priority">
+          <select className={'priority-select ' + optionClass(PRIORITY_OPTIONS, a.priority, 'pr-medium')} value={a.priority || 'medium'} onChange={e => onUpdate('priority', e.target.value)}>
+            {PRIORITY_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+        </td>
+      )
+    case 'letter':
+      return (
+        <td key="letter" style={{ textAlign: 'center' }}>
+          {a.cover_letter_link
+            ? <a className="letter-link" href={a.cover_letter_link} target="_blank" rel="noopener noreferrer" title="Open cover letter" onClick={e => e.stopPropagation()}><i className="ti ti-file-text" /></a>
+            : <span className="letter-link-empty">—</span>}
+        </td>
+      )
+    default:
+      return <td key={col.key}></td>
+  }
+}
+
+function ApplicationRow({ app: a, columns, extraTd, isOpen, onToggle, onUpdate, onDelete }) {
+  const colSpan = 2 + columns.length + (extraTd ? 1 : 0)
   return (
     <>
       <tr className="app-row">
         <td className="expand-cell" onClick={onToggle}>
           <span className={'chevron' + (isOpen ? ' open' : '')}>›</span>
         </td>
-        <EditableCell value={a.company} placeholder="Company" onSave={v => onUpdate('company', v)} />
-        <PositionCell value={a.position} link={a.link} onSave={v => onUpdate('position', v)} />
-        {visibleCols.has('location') && <EditableCell value={a.location} placeholder="Location" onSave={v => onUpdate('location', v)} />}
-        {visibleCols.has('date_applied') && (
-          <td className="num-col">
-            <input type="date" value={a.date_applied || ''} onChange={e => onUpdate('date_applied', e.target.value)} />
-          </td>
-        )}
-        {visibleCols.has('status') && (
-          <td>
-            <select className={'status-select ' + optionClass(STATUS_OPTIONS, a.status, 'st-applied')} value={a.status || 'applied'} onChange={e => onUpdate('status', e.target.value)}>
-              {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
-          </td>
-        )}
-        {visibleCols.has('priority') && (
-          <td>
-            <select className={'priority-select ' + optionClass(PRIORITY_OPTIONS, a.priority, 'pr-medium')} value={a.priority || 'medium'} onChange={e => onUpdate('priority', e.target.value)}>
-              {PRIORITY_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-            </select>
-          </td>
-        )}
-        {visibleCols.has('source') && <EditableCell value={a.source} placeholder="—" onSave={v => onUpdate('source', v)} />}
-        {visibleCols.has('salary') && <EditableCell value={a.salary} placeholder="—" onSave={v => onUpdate('salary', v)} />}
-        {visibleCols.has('follow_up_date') && (
-          <td className="num-col">
-            <input type="date" value={a.follow_up_date || ''} onChange={e => onUpdate('follow_up_date', e.target.value)} />
-          </td>
-        )}
-        {visibleCols.has('letter') && (
-          <td style={{ textAlign: 'center' }}>
-            {a.cover_letter_link
-              ? <a className="letter-link" href={a.cover_letter_link} target="_blank" rel="noopener noreferrer" title="Open cover letter" onClick={e => e.stopPropagation()}><i className="ti ti-file-text" /></a>
-              : <span className="letter-link-empty">—</span>}
-          </td>
-        )}
+        {columns.map(col => renderAppCell(col, a, onUpdate))}
+        {extraTd && <td></td>}
         <td><button className="del-btn" title="Delete row" onClick={onDelete}>×</button></td>
       </tr>
       {isOpen && (
@@ -468,13 +585,10 @@ function ConversationRow({ convo: c, isOpen, onToggle, onUpdate, onDelete }) {
   return (
     <>
       <tr className="app-row">
-        <td className="expand-cell" onClick={onToggle}>
-          <span className={'chevron' + (isOpen ? ' open' : '')}>›</span>
-        </td>
         <td className="num-col">
           <input type="date" value={c.date || ''} onChange={e => onUpdate('date', e.target.value)} />
         </td>
-        <EditableCell value={c.person} placeholder="Name" onSave={v => onUpdate('person', v)} />
+        <PersonCell value={c.person} onSave={v => onUpdate('person', v)} onToggle={onToggle} isOpen={isOpen} />
         <EditableCell value={c.context} placeholder="Company" onSave={v => onUpdate('context', v)} />
         <td>
           <textarea className="conv-note" placeholder="job leads, advice, intros…" defaultValue={c.recommendation || ''} onBlur={e => onUpdate('recommendation', e.target.value)} />
@@ -486,7 +600,7 @@ function ConversationRow({ convo: c, isOpen, onToggle, onUpdate, onDelete }) {
       </tr>
       {isOpen && (
         <tr className="detail-row">
-          <td colSpan={7}>
+          <td colSpan={6}>
             <div className="detail-grid">
               <label>Email<input type="text" placeholder="name@company.com" defaultValue={c.email || ''} onBlur={e => onUpdate('email', e.target.value)} /></label>
               <label>Phone<input type="text" placeholder="phone number" defaultValue={c.phone || ''} onBlur={e => onUpdate('phone', e.target.value)} /></label>
@@ -524,18 +638,11 @@ function EditableCell({ value, placeholder, onSave }) {
 function PositionCell({ value, link, onSave }) {
   const [editing, setEditing] = useState(false)
 
-  if (!link) {
-    return <EditableCell value={value} placeholder="Position" onSave={onSave} />
-  }
+  if (!link) return <EditableCell value={value} placeholder="Position" onSave={onSave} />
 
   if (editing) {
     return (
-      <td
-        contentEditable
-        suppressContentEditableWarning
-        autoFocus
-        onBlur={e => { onSave(e.target.textContent); setEditing(false) }}
-      >
+      <td contentEditable suppressContentEditableWarning autoFocus onBlur={e => { onSave(e.target.textContent); setEditing(false) }}>
         {value || ''}
       </td>
     )
@@ -554,6 +661,25 @@ function PositionCell({ value, link, onSave }) {
       >
         {value || 'Position'}
       </a>
+    </td>
+  )
+}
+
+function PersonCell({ value, onSave, onToggle }) {
+  const [editing, setEditing] = useState(false)
+
+  if (editing) {
+    return (
+      <td contentEditable suppressContentEditableWarning autoFocus onBlur={e => { onSave(e.target.textContent); setEditing(false) }}>
+        {value || ''}
+      </td>
+    )
+  }
+
+  return (
+    <td className="person-cell" onClick={onToggle}>
+      <span className="position-link">{value || 'Name'}</span>
+      <button className="edit-pencil" onClick={e => { e.stopPropagation(); setEditing(true) }} title="Rename">✎</button>
     </td>
   )
 }
