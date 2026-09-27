@@ -1,0 +1,21 @@
+# Dependencies and build output
+node_modules
+dist
+
+# Local env files: never commit real keys
+.env
+.env.*
+!.env.example
+
+# Vercel / Supabase local state
+.vercel
+supabase/.temp
+supabase/.branches
+
+# Logs and OS/editor noise
+*.log
+npm-debug.log*
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
