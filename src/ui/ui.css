@@ -1,183 +1,152 @@
-/* Styles for src/ui components. Built only on --sk-* tokens. */
+/* Styles for src/ui components. Built on the variables in
+   src/styles/sidekick.css; buttons and fields use its sk-* classes directly. */
 
 /* Logo ------------------------------------------------------------------- */
 .ui-logo { display: inline-flex; align-items: center; line-height: 1; vertical-align: middle; }
 .ui-wordmark {
-  font-family: var(--sk-font-display);
+  font-family: var(--font-display);
   font-weight: 600;
   letter-spacing: -0.01em;
   text-transform: lowercase;
-  color: var(--sk-ink);
+  color: var(--ink);
   line-height: 1;
 }
 .ui-logo--reversed {
-  background: var(--sk-ink);
+  background: var(--ink);
   padding: 0.4em 0.7em 0.4em 0.4em;
-  border-radius: var(--sk-radius-control);
+  border-radius: var(--radius-md);
 }
-.ui-logo--reversed .ui-wordmark { color: var(--sk-paper); }
+.ui-logo--reversed .ui-wordmark { color: var(--surface); }
 
 .ui-icon { display: inline-block; flex-shrink: 0; vertical-align: -0.15em; }
 
-/* Buttons ---------------------------------------------------------------- */
-.ui-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  font-family: var(--sk-font-ui); font-weight: 500; line-height: 1;
-  border: 1px solid transparent; border-radius: var(--sk-radius-control);
-  cursor: pointer; white-space: nowrap;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
-}
-.ui-btn:disabled { opacity: 0.55; cursor: default; }
-.ui-btn:focus-visible, .ui-icon-btn:focus-visible, .ui-filter-trigger:focus-visible, .ui-cell-link:focus-visible {
-  outline: 2px solid var(--sk-teal); outline-offset: 2px;
-}
-.ui-btn--md { font-size: 14px; padding: 10px 16px; }
-.ui-btn--sm { font-size: 13px; padding: 7px 12px; }
-.ui-btn--primary { background: var(--sk-teal); color: var(--sk-card); }
-.ui-btn--primary:hover:not(:disabled) { background: var(--sk-teal-dark); }
-.ui-btn--secondary { background: var(--sk-card); color: var(--sk-ink); border-color: var(--sk-border-strong); }
-.ui-btn--secondary:hover:not(:disabled) { border-color: var(--sk-ink-faint); }
-.ui-btn--danger { background: var(--sk-red); color: var(--sk-card); }
-.ui-btn--danger:hover:not(:disabled) { background: var(--sk-red-dark); }
-.ui-btn--ghost { background: transparent; color: var(--sk-ink-soft); }
-.ui-btn--ghost:hover:not(:disabled) { background: var(--sk-paper-sunken); color: var(--sk-ink); }
+/* Buttons: variants not in the sk-btn set --------------------------------- */
+.sk-btn.ui-btn--sm { height: 30px; padding: 0 10px; font-size: 13px; }
+.ui-btn--danger { background: var(--danger); color: var(--surface); }
+/* No matching variable for the darker hover red: kept as a literal. */
+.ui-btn--danger:hover:not(:disabled) { background: #6F3020; }
 .ui-btn--link {
-  background: none; border: 0; padding: 0; font-size: inherit; font-weight: 500;
-  color: var(--sk-teal); text-decoration: underline; text-underline-offset: 2px;
+  display: inline; height: auto; padding: 0; border: 0; background: none;
+  font-family: var(--font-sans); font-size: inherit; font-weight: 500; line-height: inherit;
+  color: var(--indigo); text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
 }
+.ui-btn--link:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; border-radius: 2px; }
 
 .ui-icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
-  border: 0; background: transparent; color: var(--sk-ink-faint);
-  border-radius: 8px; cursor: pointer;
+  border: 0; background: transparent; color: var(--ink-muted);
+  border-radius: var(--radius-sm); cursor: pointer;
 }
 .ui-icon-btn--md { width: 32px; height: 32px; }
-.ui-icon-btn--sm { width: 24px; height: 24px; }
-.ui-icon-btn:hover { background: var(--sk-paper-sunken); color: var(--sk-ink); }
+.ui-icon-btn--sm { width: 28px; height: 28px; }
+.ui-icon-btn:hover { background: var(--surface-sunken); color: var(--ink); }
+.ui-icon-btn:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
 
-/* Inputs ------------------------------------------------------------------ */
-.ui-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.ui-field-label { font-size: 12px; font-weight: 500; color: var(--sk-ink-soft); }
-.ui-input, .ui-select {
-  font-family: var(--sk-font-ui); font-size: 14px; color: var(--sk-ink);
-  background: var(--sk-card);
-  border: 1px solid var(--sk-border-strong); border-radius: var(--sk-radius-control);
-  padding: 9px 11px; width: 100%; min-width: 0;
-}
-.ui-input::placeholder { color: var(--sk-ink-faint); }
-.ui-input:focus, .ui-select:focus {
-  outline: none; border-color: var(--sk-teal); box-shadow: 0 0 0 3px rgba(31,111,98,0.15);
-}
-.ui-input--sm { font-size: 13px; padding: 7px 9px; }
-.ui-textarea { min-height: 88px; resize: vertical; line-height: 1.45; }
+/* Fields: sk-field / sk-input, plus textarea and select --------------------- */
+textarea.sk-input { height: auto; min-height: 96px; padding: 9px 12px; resize: vertical; }
+select.sk-input { cursor: pointer; }
+.sk-input[type="date"] { width: auto; min-width: 160px; }
 
-/* Select as a colored pill (status, priority) */
+/* Select as a colored pill */
 .ui-select--pill {
-  width: auto; border: 0; border-radius: var(--sk-radius-pill);
-  font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
-  padding: 5px 12px; cursor: pointer; appearance: none; -webkit-appearance: none; text-align: center;
+  width: auto; height: 24px; border: 0; border-radius: var(--radius-full);
+  font-family: var(--font-sans); font-size: 12px; font-weight: 600;
+  padding: 0 10px; cursor: pointer; appearance: none; -webkit-appearance: none; text-align: center;
 }
-.ui-select--pill:focus { box-shadow: 0 0 0 3px rgba(31,111,98,0.2); }
+.ui-select--pill:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
 
-/* Tones shared by Badge and pill Select */
+/* Tones shared by Badge and pill Select (status colors; amber is reserved
+   for follow-ups and deliberately not offered here). */
 .ui-badge {
-  display: inline-flex; align-items: center; border-radius: var(--sk-radius-pill);
-  font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
-  padding: 4px 10px; line-height: 1.2;
+  display: inline-flex; align-items: center; height: 24px; padding: 0 10px;
+  border-radius: var(--radius-full); font-family: var(--font-sans); font-size: 12px; font-weight: 600;
 }
-.ui-tone--neutral { background: var(--sk-paper-sunken); color: var(--sk-ink-soft); }
-.ui-tone--blue { background: var(--sk-blue-bg); color: var(--sk-teal-dark); }
-.ui-tone--amber { background: var(--sk-amber-bg); color: var(--sk-amber); }
-.ui-tone--green { background: var(--sk-green-bg); color: var(--sk-green); }
-.ui-tone--red { background: var(--sk-red-bg); color: var(--sk-red); }
-.ui-tone--teal { background: var(--sk-teal); color: var(--sk-card); }
-.ui-tone--spark { background: var(--sk-spark); color: var(--sk-ink); }
+.ui-tone--neutral { background: var(--status-closed-bg); color: var(--status-closed-ink); }
+.ui-tone--indigo { background: var(--status-applied-bg); color: var(--status-applied-ink); }
+.ui-tone--blue { background: var(--status-interview-bg); color: var(--status-interview-ink); }
+.ui-tone--green { background: var(--status-offer-bg); color: var(--status-offer-ink); }
+.ui-tone--red { background: var(--status-rejected-bg); color: var(--status-rejected-ink); }
 
 /* Card -------------------------------------------------------------------- */
-.ui-card {
-  background: var(--sk-card);
-  border: 1px solid var(--sk-border);
-  border-radius: var(--sk-radius-card);
-}
-.ui-card--padded { padding: 24px; }
+.ui-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.ui-card--padded { padding: var(--space-6); }
 
 /* Modal ------------------------------------------------------------------- */
 .ui-overlay {
   position: fixed; inset: 0; z-index: 50;
-  background: var(--sk-overlay);
+  /* No matching variable for the dimmed backdrop: kept as a literal. */
+  background: rgba(23,25,28,0.45);
   display: flex; align-items: flex-start; justify-content: center;
-  padding: 6vh 16px 24px; overflow-y: auto;
+  padding: 6vh var(--space-4) var(--space-6); overflow-y: auto;
 }
 .ui-modal {
-  background: var(--sk-card);
-  border: 1px solid var(--sk-border);
-  border-radius: var(--sk-radius-card);
-  box-shadow: var(--sk-shadow-modal);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  /* No matching variable for the large modal shadow: kept as a literal. */
+  box-shadow: 0 20px 50px rgba(23,25,28,0.22);
   width: 100%;
   outline: none;
+  color: var(--ink);
+  font-family: var(--font-sans);
 }
 .ui-modal--sm { max-width: 400px; }
 .ui-modal--md { max-width: 680px; }
 .ui-modal--lg { max-width: 880px; }
 .ui-modal-header {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
-  padding: 20px 20px 16px 24px; border-bottom: 1px solid var(--sk-border);
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
+  padding: 20px 20px var(--space-4) var(--space-6); border-bottom: 1px solid var(--line);
 }
-.ui-modal-titles { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
-.ui-modal-body { padding: 20px 24px 24px; }
-.ui-modal-footer { padding: 0 24px 20px; display: flex; justify-content: flex-end; gap: 8px; }
-.ui-confirm-message { margin: 0 0 20px; font-size: 15px; line-height: 1.5; color: var(--sk-ink); }
-.ui-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.ui-modal-titles { display: flex; flex-direction: column; gap: var(--space-1); flex: 1; min-width: 0; }
+.ui-modal-body { padding: 20px var(--space-6) var(--space-6); }
+.ui-modal-footer { padding: 0 var(--space-6) 20px; display: flex; justify-content: flex-end; gap: var(--space-2); }
+.ui-confirm-message { margin: 0 0 20px; font-size: 15px; line-height: 22px; color: var(--ink); }
+.ui-confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
 
 /* Popover ----------------------------------------------------------------- */
 .ui-popover-wrap { position: relative; display: inline-block; }
 .ui-popover {
   position: absolute; top: calc(100% + 6px); z-index: 30;
-  background: var(--sk-card);
-  border: 1px solid var(--sk-border);
-  border-radius: 12px;
-  box-shadow: var(--sk-shadow-popover);
-  padding: 8px; min-width: 190px;
-  text-transform: none; letter-spacing: normal; font-weight: 400;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  padding: var(--space-2); min-width: 200px;
+  font-weight: 400; color: var(--ink);
 }
 .ui-popover--start { left: 0; }
 .ui-popover--end { right: 0; }
 .ui-popover-row {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 13px; color: var(--sk-ink); padding: 6px 6px; border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: 14px; color: var(--ink); padding: 6px; border-radius: var(--radius-sm); cursor: pointer;
 }
-.ui-popover-row:hover { background: var(--sk-paper); }
-.ui-popover-row input { accent-color: var(--sk-teal); }
+.ui-popover-row:hover { background: var(--canvas); }
+.ui-popover-row input { accent-color: var(--indigo); }
 
 .ui-filter-trigger {
-  display: inline-flex; align-items: center; gap: 5px;
+  display: inline-flex; align-items: center; gap: 6px;
   background: none; border: 0; padding: 0; cursor: pointer;
-  font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit;
+  font: inherit; color: inherit;
 }
-.ui-filter-trigger:hover, .ui-filter-trigger.is-active { color: var(--sk-teal); }
-.ui-filter-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--sk-spark); }
+.ui-filter-trigger:hover, .ui-filter-trigger.is-active { color: var(--indigo); }
+.ui-filter-trigger:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; border-radius: 2px; }
+.ui-filter-dot { width: 6px; height: 6px; border-radius: var(--radius-full); background: var(--indigo); }
 
 /* Table cells ------------------------------------------------------------- */
 .ui-cell-edit { cursor: text; }
-.ui-cell-edit:focus {
-  outline: none; background: var(--sk-card);
-  box-shadow: inset 0 0 0 2px var(--sk-teal); border-radius: 6px;
-}
-.ui-cell-edit:empty::before { content: attr(data-placeholder); color: var(--sk-ink-faint); }
-.ui-cell-link {
-  color: var(--sk-ink); font-weight: 500;
-  text-decoration: underline; text-decoration-color: rgba(31,111,98,0.45);
-  text-underline-offset: 3px;
-}
-.ui-cell-link:hover { color: var(--sk-teal); text-decoration-color: var(--sk-teal); }
+.ui-cell-edit:focus { outline: 2px solid var(--indigo); outline-offset: -2px; background: var(--surface); border-radius: var(--radius-sm); }
+.ui-cell-edit:empty::before { content: attr(data-placeholder); color: var(--ink-muted); }
+.ui-cell-link { color: var(--indigo); font-weight: 500; text-decoration: none; }
+.ui-cell-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.ui-cell-link:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; border-radius: 2px; }
 .ui-cell-link--button { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-align: left; }
 .ui-cell-action { white-space: nowrap; }
-.ui-cell-pencil { margin-left: 4px; opacity: 0; }
+.ui-cell-pencil { margin-left: var(--space-1); opacity: 0; }
 tr:hover .ui-cell-pencil, .ui-cell-pencil:focus-visible { opacity: 1; }
 .ui-cell-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ui-cell-date {
-  font-family: var(--sk-font-ui); font-size: 13px; color: var(--sk-ink);
-  background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 4px 6px;
+  font-family: var(--font-sans); font-size: 14px; color: var(--ink);
+  background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm); padding: 4px 6px;
 }
-.ui-cell-date:hover { border-color: var(--sk-border-strong); }
-.ui-cell-date:focus { outline: none; border-color: var(--sk-teal); background: var(--sk-card); }
+.ui-cell-date:hover { border-color: var(--line-strong); }
+.ui-cell-date:focus { outline: 2px solid var(--indigo); outline-offset: 0; background: var(--surface); }

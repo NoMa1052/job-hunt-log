@@ -1,10 +1,14 @@
 import Icon from './Icon'
 
-// variant: primary | secondary | danger | ghost | link. size: sm | md.
+// variant: primary (one main action per view) | secondary | ghost | danger | link.
+// size: md | sm.
 export default function Button({ variant = 'secondary', size = 'md', icon, type = 'button', className = '', children, ...props }) {
+  const classes = variant === 'link'
+    ? 'ui-btn--link'
+    : `sk-btn ${variant === 'danger' ? 'ui-btn--danger' : `sk-btn--${variant}`} ${size === 'sm' ? 'ui-btn--sm' : ''}`
   return (
-    <button type={type} className={`ui-btn ui-btn--${variant} ui-btn--${size} ${className}`.trim()} {...props}>
-      {icon && <Icon name={icon} size={size === 'sm' ? 14 : 16} />}
+    <button type={type} className={`${classes} ${className}`.replace(/\s+/g, ' ').trim()} {...props}>
+      {icon && <Icon name={icon} size={16} />}
       {children}
     </button>
   )

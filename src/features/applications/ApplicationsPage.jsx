@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { useData } from '../../state/DataProvider'
 import { loadPref, savePref } from '../../lib/storage'
 import { safeUrl } from '../../lib/url'
-import { toCSV, downloadCSV } from '../../lib/format'
-import {
-  Button, Card, ConfirmDialog, DateCell, EditableCell, EditableLinkCell, FilterPopover, Icon, IconButton, Popover, SelectCell,
-} from '../../ui'
+import { toCSV, downloadCSV, formatShortDate } from '../../lib/format'
+import { Button, Chip, ConfirmDialog, FilterPopover, FollowUp, Icon, IconButton, Popover } from '../../ui'
 import CollectionState from '../../components/CollectionState'
 import ApplicationModal from './ApplicationModal'
-import { ALL_COLUMNS, DEFAULT_ORDER, DEFAULT_HIDDEN, EXPORT_HEADERS, passesFilters } from './options'
+import {
+  ALL_COLUMNS, DEFAULT_ORDER, DEFAULT_HIDDEN, EXPORT_HEADERS, PRIORITY_OPTIONS,
+  followUp, optionLabel, passesFilters, statusChip,
+} from './options'
 
 export default function ApplicationsPage() {
   const { userId, data, add, update, remove, reload } = useData()
@@ -56,16 +57,24 @@ export default function ApplicationsPage() {
     })
   }
 
+  // The whole row opens the detail view; links and buttons inside it keep
+  // their own behavior.
+  function openFromRow(e, id) {
+    if (e.target.closest('a, button')) return
+    setEditingAppId(id)
+  }
+
   const visibleColumns = columnOrder.filter(k => !hiddenCols.has(k)).map(k => ALL_COLUMNS.find(c => c.key === k)).filter(Boolean)
   const filteredApplications = applications.filter(a => passesFilters(a, colFilters))
   const editingApp = editingAppId ? applications.find(a => a.id === editingAppId) : null
 
   return (
-    <Card as="section" aria-label="Applications">
-      <div className="panel-head">
-        <p className="panel-intro">Open a row with the expand icon to see every field. Click a column name to filter it.</p>
-        <div className="panel-actions">
-          <Popover align="end" trigger={({ open, toggle }) => <Button icon="columns" onClick={toggle} aria-expanded={open}>Columns</Button>}>
+    <section aria-label="Applications">
+      <div className="toolbar">
+        <p className="toolbar-intro">Select a row to see and edit every field. Select a column name to filter it.</p>
+        <div className="toolbar-actions">
+          <Button variant="ghost" icon="download" onClick={() => downloadCSV('applications.csv', toCSV(EXPORT_HEADERS, filteredApplications))}>Export</Button>
+          <Popover align="end" trigger={({ open, toggle }) => <Button variant="secondary" icon="columns" onClick={toggle} aria-expanded={open}>Columns</Button>}>
             {columnOrder.map((key, idx) => {
               const col = ALL_COLUMNS.find(c => c.key === key)
               if (!col) return null
@@ -92,18 +101,16 @@ export default function ApplicationsPage() {
               )
             })}
           </Popover>
-          <Button icon="download" onClick={() => downloadCSV('applications.csv', toCSV(EXPORT_HEADERS, filteredApplications))}>Export CSV</Button>
           <Button variant="primary" icon="plus" onClick={addApplication}>Add application</Button>
         </div>
       </div>
 
-      <div className="table-wrap">
-        <table className="data wide">
+      <div className="sk-table-panel">
+        <table className="sk-table">
           <thead>
             <tr>
-              <th className="col-icon"><span className="sr-only">Open</span></th>
               {visibleColumns.map(col => (
-                <th key={col.key}>
+                <th key={col.key} scope="col">
                   {col.type === 'text' && (
                     <FilterPopover label={col.label} value={colFilters[col.key]} onChange={v => setTextFilter(col.key, v)} />
                   )}
@@ -118,11 +125,18 @@ export default function ApplicationsPage() {
           </thead>
           <tbody>
             {filteredApplications.map(a => (
-              <tr key={a.id}>
-                <td className="col-icon">
-                  <IconButton icon="expand" size="sm" label="Open full details" onClick={() => setEditingAppId(a.id)} />
-                </td>
-                {visibleColumns.map(col => renderAppCell(col, a, (field, value) => updateApplication(a.id, field, value)))}
+              <tr
+                key={a.id}
+                className="row-link"
+                tabIndex={0}
+                aria-selected={editingAppId === a.id}
+                aria-label={`${a.company || 'Untitled application'}${a.position ? `, ${a.position}` : ''}: open details`}
+                onClick={e => openFromRow(e, a.id)}
+                onKeyDown={e => {
+                  if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setEditingAppId(a.id) }
+                }}
+              >
+                {visibleColumns.map(col => renderAppCell(col, a))}
                 <td className="col-actions">
                   <IconButton icon="x" size="sm" label="Delete application" onClick={() => setConfirmId(a.id)} />
                 </td>
@@ -130,14 +144,14 @@ export default function ApplicationsPage() {
             ))}
           </tbody>
         </table>
+        <CollectionState state={data.applications} onRetry={() => reload('applications')}>
+          {filteredApplications.length === 0 && (
+            <div className="empty-state">
+              {applications.length === 0 ? 'No applications logged yet. Add your first one above.' : 'Nothing matches the current filters.'}
+            </div>
+          )}
+        </CollectionState>
       </div>
-      <CollectionState state={data.applications} onRetry={() => reload('applications')}>
-        {filteredApplications.length === 0 && (
-          <div className="empty-state">
-            {applications.length === 0 ? 'No applications logged yet. Add your first one above.' : 'Nothing matches the current filters.'}
-          </div>
-        )}
-      </CollectionState>
 
       {editingApp && (
         <ApplicationModal app={editingApp} onUpdate={(field, value) => updateApplication(editingApp.id, field, value)} onClose={() => setEditingAppId(null)} />
@@ -149,30 +163,47 @@ export default function ApplicationsPage() {
           onCancel={() => setConfirmId(null)}
         />
       )}
-    </Card>
+    </section>
   )
 }
 
-function renderAppCell(col, a, onUpdate) {
+const dash = <span aria-label="None">—</span>
+
+function renderAppCell(col, a) {
   switch (col.key) {
     case 'company':
-      return <EditableCell key="company" value={a.company} placeholder="Company" onSave={v => onUpdate('company', v)} />
-    case 'position':
-      return <EditableLinkCell key="position" value={a.position} href={safeUrl(a.link)} placeholder="Position" title="Opens where you applied — double-click to rename" onSave={v => onUpdate('position', v)} />
+      return <td key="company" className="sk-cell-company">{a.company || <span className="sk-cell-meta">Untitled</span>}</td>
+    case 'position': {
+      const href = safeUrl(a.link)
+      return (
+        <td key="position">
+          {href
+            ? <a className="sk-cell-link" href={href} target="_blank" rel="noopener noreferrer" title="Opens where you applied">{a.position || 'Position'}</a>
+            : a.position || <span className="sk-cell-meta">—</span>}
+        </td>
+      )
+    }
     case 'location': case 'source': case 'salary': case 'hiring_manager': case 'connections':
-      return <EditableCell key={col.key} value={a[col.key]} placeholder="—" onSave={v => onUpdate(col.key, v)} />
-    case 'date_applied': case 'follow_up_date': case 'interview_date':
-      return <DateCell key={col.key} value={a[col.key]} onChange={v => onUpdate(col.key, v)} />
-    case 'status':
+      return <td key={col.key} className="sk-cell-meta">{a[col.key] || dash}</td>
+    case 'date_applied': case 'interview_date':
+      return <td key={col.key} className="sk-cell-meta">{formatShortDate(a[col.key]) || dash}</td>
+    case 'follow_up_date': {
+      const f = followUp(a)
+      return <td key={col.key}><FollowUp state={f.state}>{f.text}</FollowUp></td>
+    }
+    case 'status': {
+      const chip = statusChip(a.status)
+      return <td key="status"><Chip kind={chip.kind}>{chip.label}</Chip></td>
+    }
     case 'priority':
-      return <SelectCell key={col.key} label={col.label} options={col.options} value={a[col.key] || col.fallback} onChange={v => onUpdate(col.key, v)} />
+      return <td key="priority" className="sk-cell-meta">{optionLabel(PRIORITY_OPTIONS, a.priority, 'medium')}</td>
     case 'letter': {
       const href = safeUrl(a.cover_letter_link)
       return (
         <td key="letter" className="center">
           {href
             ? <a className="icon-link" href={href} target="_blank" rel="noopener noreferrer" title="Open cover letter" aria-label="Open cover letter"><Icon name="file-text" /></a>
-            : <span className="muted">—</span>}
+            : <span className="sk-cell-meta">—</span>}
         </td>
       )
     }

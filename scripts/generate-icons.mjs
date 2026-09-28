@@ -2,7 +2,7 @@
 // Run after changing the mark or brand colors: npm run icons
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { Resvg } from '@resvg/resvg-js'
-import { color, mark, radius } from '../src/ui/tokens.js'
+import { mark } from '../src/ui/tokens.js'
 
 const V = mark.viewBox
 
@@ -11,13 +11,13 @@ const V = mark.viewBox
 // shrinks the mark to keep it inside maskable-icon safe zones.
 function svg({ small, rounded = true, inset = 1 }) {
   const g = small ? mark.small : mark.regular
-  const rx = rounded ? V * radius.tileRatio : 0
+  const rx = rounded ? mark.tileRadius : 0
   const t = (1 - inset) * V / 2
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${V} ${V}">
-  <rect width="${V}" height="${V}" rx="${rx}" fill="${color.teal}"/>
+  <rect width="${V}" height="${V}" rx="${rx}" fill="${mark.colors.tile}"/>
   <g transform="translate(${t} ${t}) scale(${inset})">
-    <path d="${mark.path}" fill="none" stroke="${color.paper}" stroke-width="${g.strokeWidth}" stroke-linecap="round"/>
-    <circle cx="${mark.dot.cx}" cy="${mark.dot.cy}" r="${g.dotRadius}" fill="${color.spark}"/>
+    <path d="${mark.path}" fill="none" stroke="${mark.colors.stroke}" stroke-width="${g.strokeWidth}" stroke-linecap="round"/>
+    <circle cx="${mark.dot.cx}" cy="${mark.dot.cy}" r="${g.dotRadius}" fill="${mark.colors.dot}"/>
   </g>
 </svg>
 `

@@ -66,3 +66,20 @@ describe('Logo', () => {
     expect(container.querySelector('circle').getAttribute('r')).toBe('10')
   })
 })
+
+describe('Field', () => {
+  it('names the control by its label and describes it with the hint', async () => {
+    const { Field, Input } = await import('./index')
+    render(<Field label="New password" hint="At least 6 characters."><Input type="password" /></Field>)
+    const input = screen.getByLabelText('New password', { exact: true })
+    expect(document.getElementById(input.getAttribute('aria-describedby')).textContent).toBe('At least 6 characters.')
+  })
+
+  it('shows an error state with a how-to-fix message', async () => {
+    const { Field, Input } = await import('./index')
+    const { container } = render(<Field label="Confirm" error="Passwords don't match. Type the same password in both fields."><Input /></Field>)
+    expect(container.querySelector('.sk-field--error')).not.toBeNull()
+    expect(screen.getByLabelText('Confirm', { exact: true }).getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByRole('alert').textContent).toMatch(/Type the same password/)
+  })
+})

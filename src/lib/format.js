@@ -6,6 +6,30 @@ export function todayLocal(now = new Date()) {
   return `${y}-${m}-${d}`
 }
 
+// Parse YYYY-MM-DD as a local calendar date (new Date('2026-07-27') would be
+// UTC midnight, which shows as the previous day in the Americas).
+export function parseYmd(value) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '')
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null
+}
+
+// "Jul 27", or "Jul 27, 2025" when it isn't the current year.
+export function formatShortDate(value, now = new Date()) {
+  if (!value) return ''
+  const d = parseYmd(value) || new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  const opts = { month: 'short', day: 'numeric' }
+  if (d.getFullYear() !== now.getFullYear()) opts.year = 'numeric'
+  return d.toLocaleDateString('en-US', opts)
+}
+
+// Whole calendar days from `from` to `to` (both YYYY-MM-DD).
+export function daysBetween(from, to) {
+  const a = parseYmd(from)
+  const b = parseYmd(to)
+  return Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 86400000)
+}
+
 export function formatDate(ts) {
   if (!ts) return ''
   return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
