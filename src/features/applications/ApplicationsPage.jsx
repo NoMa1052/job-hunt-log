@@ -1,68 +1,61 @@
-import { useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useData } from '../../state/DataProvider'
-import { loadPref, savePref } from '../../lib/storage'
+import useTableViews from '../../state/useTableViews'
 import { safeUrl } from '../../lib/url'
 import { toCSV, downloadCSV, formatShortDate } from '../../lib/format'
-import { Button, Chip, ConfirmDialog, FilterPopover, FollowUp, Icon, IconButton, Popover } from '../../ui'
+import { Button, Chip, ConfirmDialog, FollowUp, Icon, IconButton } from '../../ui'
 import CollectionState from '../../components/CollectionState'
 import PageHeader from '../../components/PageHeader'
 import ApplicationPanel from './ApplicationPanel'
-import {
-  ALL_COLUMNS, DEFAULT_ORDER, DEFAULT_HIDDEN, EXPORT_HEADERS, PRIORITY_OPTIONS,
-  followUp, optionLabel, passesFilters, statusChip,
-} from './options'
+import ColumnsMenu from './ColumnsMenu'
+import FilterBuilder from './FilterBuilder'
+import ViewTabs, { ALL_VIEW } from './ViewTabs'
+import { EXPORT_HEADERS, PRIORITY_OPTIONS, followUp, optionLabel, statusChip } from './options'
+import { DEFAULT_CONFIG, applyView, column, legacyToConfig, nextSort, normalizeConfig, sameConfig } from './views'
 
-export default function ApplicationsPage() {
-  const { userId, data, add, update, remove, reload } = useData()
+export default function ApplicationsPage({ defaultViewId } = {}) {
+  const { data, add, update, remove, reload } = useData()
   const applications = data.applications.rows
+  const tableViews = useTableViews('applications', { legacyToConfig })
+  const [confirmId, setConfirmId] = useState(null)
+  const [allConfig, setAllConfig] = useState(DEFAULT_CONFIG)
 
-  const [columnOrder, setColumnOrder] = useState(() => loadPref(userId, 'col-order', DEFAULT_ORDER))
-  const [hiddenCols, setHiddenCols] = useState(() => new Set(loadPref(userId, 'hidden-cols', DEFAULT_HIDDEN)))
-  const [colFilters, setColFilters] = useState(() => loadPref(userId, 'col-filters', {}))
-  // The open application lives in the URL (/app/applications/:appId), so
-  // reload, back and shared links all work.
+  // The open application and the active view both live in the URL, so
+  // reload, back and shared links work.
   const { appId: editingAppId } = useParams()
   const navigate = useNavigate()
   const { search } = useLocation()
+  const [searchParams] = useSearchParams()
   const setEditingAppId = id => navigate({ pathname: id ? `/app/applications/${id}` : '/app/applications', search })
-  const [confirmId, setConfirmId] = useState(null)
-  const dragColIdxRef = useRef(null)
 
-  useEffect(() => { savePref(userId, 'col-order', columnOrder) }, [userId, columnOrder])
-  useEffect(() => { savePref(userId, 'hidden-cols', [...hiddenCols]) }, [userId, hiddenCols])
-  useEffect(() => { savePref(userId, 'col-filters', colFilters) }, [userId, colFilters])
+  const requestedView = searchParams.get('view') || defaultViewId || ALL_VIEW
+  const activeView = tableViews.views.find(v => v.id === requestedView)
+  const activeId = activeView ? activeView.id : ALL_VIEW
+  const config = useMemo(() => normalizeConfig(activeView ? activeView.config : allConfig), [activeView, allConfig])
+  const { saveConfig } = tableViews
+  const setConfig = useCallback(patch => {
+    const next = normalizeConfig({ ...config, ...patch })
+    if (activeView) saveConfig(activeView.id, next)
+    else setAllConfig(next)
+  }, [config, activeView, saveConfig])
+
+  function selectView(id) {
+    const params = new URLSearchParams(search)
+    if (id === ALL_VIEW) params.delete('view'); else params.set('view', id)
+    const qs = params.toString()
+    navigate({ pathname: '/app/applications', search: qs ? `?${qs}` : '' })
+  }
+  async function createView(name, fromConfig = config) {
+    const row = await tableViews.create(name, fromConfig)
+    if (row) { if (!activeView) setAllConfig(DEFAULT_CONFIG); selectView(row.id) }
+  }
 
   async function addApplication() {
     const row = await add('applications', { company: '', position: '', location: '', status: 'applied', priority: 'medium' })
     if (row) setEditingAppId(row.id)
   }
   const updateApplication = (id, field, value) => update('applications', id, field, value)
-
-  function toggleColumn(key) {
-    setHiddenCols(prev => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key); else next.add(key)
-      return next
-    })
-  }
-  function reorderColumns(fromIdx, toIdx) {
-    setColumnOrder(prev => {
-      const arr = [...prev]
-      const [moved] = arr.splice(fromIdx, 1)
-      arr.splice(toIdx, 0, moved)
-      return arr
-    })
-  }
-  function setTextFilter(key, value) { setColFilters(prev => ({ ...prev, [key]: value })) }
-  function toggleSelectFilter(key, value, options) {
-    setColFilters(prev => {
-      const current = prev[key] ? [...prev[key]] : options.map(o => o.value)
-      const idx = current.indexOf(value)
-      if (idx >= 0) current.splice(idx, 1); else current.push(value)
-      return { ...prev, [key]: current }
-    })
-  }
 
   // The whole row opens the detail view; links and buttons inside it keep
   // their own behavior.
@@ -71,9 +64,13 @@ export default function ApplicationsPage() {
     setEditingAppId(id)
   }
 
-  const visibleColumns = columnOrder.filter(k => !hiddenCols.has(k)).map(k => ALL_COLUMNS.find(c => c.key === k)).filter(Boolean)
-  const filteredApplications = applications.filter(a => passesFilters(a, colFilters))
+  const visibleColumns = config.columns.filter(c => c.visible).map(c => column(c.key))
+  const shownApplications = useMemo(() => applyView(applications, config), [applications, config])
   const editingApp = editingAppId ? applications.find(a => a.id === editingAppId) : null
+  const viewsUnavailable = tableViews.status === 'unavailable' || tableViews.status === 'error'
+  // A link to a saved view waits for the views to load instead of flashing
+  // the wrong layout first.
+  const waitingForView = requestedView !== ALL_VIEW && tableViews.status === 'loading'
 
   // A link to an application that doesn't exist (deleted, or someone else's)
   // falls back to the list once the data has loaded.
@@ -86,58 +83,46 @@ export default function ApplicationsPage() {
       <PageHeader
         title="Applications"
         actions={<>
-          <Button variant="ghost" icon="download" onClick={() => downloadCSV('applications.csv', toCSV(EXPORT_HEADERS, filteredApplications))}>Export</Button>
-          <Popover align="end" trigger={({ open, toggle }) => <Button variant="secondary" icon="columns" onClick={toggle} aria-expanded={open} title="Select a row to see and edit every field. Select a column name to filter it.">Columns</Button>}>
-            {columnOrder.map((key, idx) => {
-              const col = ALL_COLUMNS.find(c => c.key === key)
-              if (!col) return null
-              return (
-                <div
-                  key={key}
-                  className="col-row"
-                  draggable
-                  onDragStart={() => { dragColIdxRef.current = idx }}
-                  onDragOver={e => e.preventDefault()}
-                  onDrop={() => {
-                    const from = dragColIdxRef.current
-                    if (from === null || from === idx) return
-                    reorderColumns(from, idx)
-                    dragColIdxRef.current = null
-                  }}
-                >
-                  <span className="drag-handle" aria-hidden="true"><Icon name="grip" size={14} /></span>
-                  <label className="ui-popover-row">
-                    <input type="checkbox" checked={!hiddenCols.has(key)} onChange={() => toggleColumn(key)} />
-                    {col.label}
-                  </label>
-                </div>
-              )
-            })}
-          </Popover>
+          <Button variant="ghost" icon="download" onClick={() => downloadCSV('applications.csv', toCSV(EXPORT_HEADERS, shownApplications))}>Export</Button>
+          <FilterBuilder filters={config.filters} onChange={filters => setConfig({ filters })} />
+          <ColumnsMenu columns={config.columns} onChange={columns => setConfig({ columns })} />
           <Button variant="primary" icon="plus" onClick={addApplication}>Add application</Button>
         </>}
       />
+
+      <ViewTabs
+        views={tableViews.views}
+        activeId={activeId}
+        allDirty={!activeView && !sameConfig(allConfig, DEFAULT_CONFIG)}
+        disabled={viewsUnavailable || tableViews.status === 'loading'}
+        onSelect={selectView}
+        onCreate={name => createView(name)}
+        onRename={tableViews.rename}
+        onDuplicate={v => createView(`${v.name} copy`.slice(0, 60), normalizeConfig(v.config))}
+        onDelete={id => { tableViews.remove(id); if (id === activeId) selectView(ALL_VIEW) }}
+      />
+      {viewsUnavailable && <p className="views-note" role="status">Saved views aren't available right now. Changes to columns, sorting and filters last until you leave the page.</p>}
 
       <div className="sk-table-panel">
         <table className="sk-table">
           <thead>
             <tr>
-              {visibleColumns.map(col => (
-                <th key={col.key} scope="col">
-                  {col.type === 'text' && (
-                    <FilterPopover label={col.label} value={colFilters[col.key]} onChange={v => setTextFilter(col.key, v)} />
-                  )}
-                  {col.type === 'select' && (
-                    <FilterPopover label={col.label} options={col.options} selected={colFilters[col.key]} onToggle={v => toggleSelectFilter(col.key, v, col.options)} />
-                  )}
-                  {col.type !== 'text' && col.type !== 'select' && col.label}
-                </th>
-              ))}
+              {visibleColumns.map(col => {
+                const sorted = config.sort?.key === col.key ? config.sort.dir : null
+                return (
+                  <th key={col.key} scope="col" aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none'}>
+                    <button type="button" className={`sort-btn ${sorted ? 'is-sorted' : ''}`.trim()} onClick={() => setConfig({ sort: nextSort(config.sort, col.key) })}>
+                      {col.label}
+                      <span className="sort-icon" aria-hidden="true">{sorted ? <Icon name={sorted === 'asc' ? 'sort-asc' : 'sort-desc'} size={12} /> : null}</span>
+                    </button>
+                  </th>
+                )
+              })}
               <th className="col-actions"><span className="sr-only">Delete</span></th>
             </tr>
           </thead>
           <tbody>
-            {filteredApplications.map(a => (
+            {!waitingForView && shownApplications.map(a => (
               <tr
                 key={a.id}
                 className="row-link"
@@ -157,10 +142,12 @@ export default function ApplicationsPage() {
             ))}
           </tbody>
         </table>
-        <CollectionState state={data.applications} onRetry={() => reload('applications')}>
-          {filteredApplications.length === 0 && (
+        <CollectionState state={waitingForView ? { status: 'loading', rows: [] } : data.applications} onRetry={() => reload('applications')}>
+          {shownApplications.length === 0 && (
             <div className="empty-state">
-              {applications.length === 0 ? 'No applications logged yet. Add your first one above.' : 'Nothing matches the current filters.'}
+              {applications.length === 0 ? 'No applications logged yet. Add your first one above.' : (
+                <>Nothing matches this view's filters. <Button variant="link" onClick={() => setConfig({ filters: [] })}>Clear filters</Button></>
+              )}
             </div>
           )}
         </CollectionState>

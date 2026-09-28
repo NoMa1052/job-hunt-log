@@ -10,6 +10,12 @@ const PATHS = {
   plus: ['M12 5v14', 'M5 12h14'],
   download: ['M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2', 'M7 11l5 5 5-5', 'M12 4v12'],
   columns: ['M4 4h6v16H4z', 'M14 4h6v16h-6z'],
+  filter: ['M4 5h16', 'M7 12h10', 'M10 19h4'],
+  more: ['M5 12h.01', 'M12 12h.01', 'M19 12h.01'],
+  'arrow-up': ['M12 19V5', 'M6 11l6-6 6 6'],
+  'arrow-down': ['M12 5v14', 'M6 13l6 6 6-6'],
+  'sort-asc': ['M12 19V5', 'M6 11l6-6 6 6'],
+  'sort-desc': ['M12 5v14', 'M6 13l6 6 6-6'],
 }
 
 export default function Icon({ name, size = 16, title, className = '' }) {
@@ -23,7 +29,7 @@ export default function Icon({ name, size = 16, title, className = '' }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={name === 'grip' ? 3 : 1.8}
+      strokeWidth={name === 'grip' || name === 'more' ? 3 : 1.8}
       strokeLinecap="round"
       strokeLinejoin="round"
       role={title ? 'img' : undefined}

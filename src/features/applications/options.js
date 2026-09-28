@@ -28,9 +28,9 @@ export const ALL_COLUMNS = [
   { key: 'salary', label: 'Salary', type: 'text' },
   { key: 'follow_up_date', label: 'Follow-up', type: 'date' },
   { key: 'interview_date', label: 'Interview', type: 'date' },
-  { key: 'hiring_manager', label: 'Hiring mgr', type: 'text' },
+  { key: 'hiring_manager', label: 'Hiring manager', type: 'text' },
   { key: 'connections', label: 'Connections', type: 'text' },
-  { key: 'letter', label: 'Letter', type: 'icon' }
+  { key: 'letter', label: 'Cover letter', type: 'icon', field: 'cover_letter_link' }
 ]
 export const DEFAULT_ORDER = ALL_COLUMNS.map(c => c.key)
 export const DEFAULT_HIDDEN = ['interview_date', 'hiring_manager', 'connections']
@@ -50,22 +50,6 @@ export function statusCounts(applications) {
   const counts = { applied: 0, screen: 0, interview: 0, offer: 0, rejected: 0, withdrawn: 0 }
   applications.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++ })
   return counts
-}
-
-export function passesFilters(app, filters) {
-  for (const col of ALL_COLUMNS) {
-    if (col.type === 'text') {
-      const f = (filters[col.key] || '').trim().toLowerCase()
-      if (f && !(app[col.key] || '').toString().toLowerCase().includes(f)) return false
-    } else if (col.type === 'select') {
-      const allowed = filters[col.key]
-      if (allowed && allowed.length < col.options.length) {
-        const val = app[col.key] || col.fallback
-        if (!allowed.includes(val)) return false
-      }
-    }
-  }
-  return true
 }
 
 export function statusChip(status) {
