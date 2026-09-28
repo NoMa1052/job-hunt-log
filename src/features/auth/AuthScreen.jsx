@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
+import brand from '../../config/brand'
 
 export default function AuthScreen() {
   const [mode, setMode] = useState('signin')
@@ -26,7 +27,7 @@ export default function AuthScreen() {
   return (
     <div className="auth-wrap">
       <div className="auth-card">
-        <h1 className="auth-title">Job Hunt Log</h1>
+        <h1 className="auth-title">{brand.name}</h1>
         <p className="auth-sub">{mode === 'signin' ? 'Sign in to your tracker' : 'Create an account'}</p>
         <form onSubmit={submit} className="auth-form">
           <label>Email<input type="email" required value={email} onChange={e => setEmail(e.target.value)} /></label>

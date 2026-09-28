@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useData } from '../state/DataProvider'
 import { statusCounts } from '../features/applications/options'
 import SaveStatus from './SaveStatus'
+import brand from '../config/brand'
 
 const TABS = [
   { to: 'applications', label: 'Applications' },
@@ -18,10 +19,10 @@ export default function AppShell() {
 
   return (
     <div className="wrap">
-      <h2 className="sr-only">Job hunt tracker with an applications ledger, a networking conversation log, and a companies watchlist.</h2>
+      <h2 className="sr-only">{brand.description}</h2>
 
       <header>
-        <h1>Job Hunt Log<span>Applications &amp; networking, operations style</span></h1>
+        <h1>{brand.name}<span>{brand.tagline}</span></h1>
         <div className="header-right">
           <div className="tally">
             <TallyItem num={applications.length} label="Applied" />

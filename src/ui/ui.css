@@ -1,0 +1,16 @@
+/* Styles for src/ui components. Built only on --sk-* tokens. */
+.ui-logo { display: inline-flex; align-items: center; line-height: 1; vertical-align: middle; }
+.ui-wordmark {
+  font-family: var(--sk-font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-transform: lowercase;
+  color: var(--sk-ink);
+  line-height: 1;
+}
+.ui-logo--reversed {
+  background: var(--sk-ink);
+  padding: 0.4em 0.7em 0.4em 0.4em;
+  border-radius: var(--sk-radius-control);
+}
+.ui-logo--reversed .ui-wordmark { color: var(--sk-paper); }
