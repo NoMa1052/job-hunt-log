@@ -56,8 +56,8 @@ function AppRoutes({ session, recovering, setRecovering, onLoaded }) {
             <Route path="/app" element={<AppShell />}>
               <Route index element={<Navigate to="applications" replace />} />
               <Route path="applications/:appId?" element={<ApplicationsPage />} />
-              <Route path="conversations" element={<ConversationsPage />} />
-              <Route path="companies" element={<CompaniesPage />} />
+              <Route path="conversations/:personId?" element={<ConversationsPage />} />
+              <Route path="companies/:companyId?" element={<CompaniesPage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/app/applications" replace />} />

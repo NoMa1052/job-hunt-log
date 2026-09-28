@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { safeUrl } from '../../lib/url'
-import { Button, Chip, Field, FollowUp, Icon, Input, Popover, SidePanel, TextArea } from '../../ui'
+import LinkField from '../../components/LinkField'
+import { Button, Chip, Field, FollowUp, Input, Popover, SidePanel, TextArea } from '../../ui'
 import { PRIORITY_OPTIONS, STATUS_OPTIONS, followUp, optionLabel, statusChip } from './options'
 
 // Optional details: shown when filled, otherwise behind a "+ Add" button.
@@ -145,38 +145,5 @@ function TagMenu({ label, current, options, value, onChange }) {
         </div>
       )}
     </Popover>
-  )
-}
-
-// A saved link shows as a button that opens it; empty ones start as "+ Add".
-function LinkField({ def, value, onSave }) {
-  const [editing, setEditing] = useState(false)
-  const href = safeUrl(value)
-
-  if (editing || (value && !href)) {
-    return (
-      <Field label={def.label} error={value && !href && !editing ? 'That link doesn’t look right. Paste a full web address starting with https://.' : undefined}>
-        <Input
-          type="url"
-          autoFocus={editing}
-          placeholder={def.placeholder}
-          defaultValue={value || ''}
-          onBlur={e => { onSave(e.target.value.trim()); setEditing(false) }}
-          onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
-        />
-      </Field>
-    )
-  }
-  if (!href) {
-    return <Button variant="ghost" size="sm" icon="plus" onClick={() => setEditing(true)}>{def.add}</Button>
-  }
-  return (
-    <div className="panel-link">
-      <a className="sk-btn sk-btn--secondary" href={href} target="_blank" rel="noopener noreferrer">
-        <Icon name="external-link" />
-        {`Open ${def.label.toLowerCase()}`}
-      </a>
-      <Button variant="ghost" size="sm" onClick={() => setEditing(true)} aria-label={`Edit ${def.label.toLowerCase()} link`}>Edit</Button>
-    </div>
   )
 }
