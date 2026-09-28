@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { formatDate } from '../../lib/format'
+import { Modal } from '../../ui'
 
 export default function CompanyNotesModal({ company, notes, onAddNote, onClose }) {
   const [draft, setDraft] = useState('')
@@ -11,15 +12,11 @@ export default function CompanyNotesModal({ company, notes, onAddNote, onClose }
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-title-group">
-            <span className="modal-title-static">{company.company || 'Company'}</span>
-            <span className="modal-subtitle-static">Notes</span>
-          </div>
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
+    <Modal
+      onClose={onClose}
+      title={<span className="modal-title-static">{company.company || 'Company'}</span>}
+      subtitle={<span className="modal-subtitle-static">Notes</span>}
+    >
         <div className="thread-section" style={{ paddingTop: 18 }}>
           <div className="thread-add">
             <textarea className="conv-note" placeholder="Add a note…" value={draft} onChange={e => setDraft(e.target.value)} />
@@ -35,7 +32,6 @@ export default function CompanyNotesModal({ company, notes, onAddNote, onClose }
             ))}
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

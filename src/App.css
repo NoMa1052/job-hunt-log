@@ -171,13 +171,13 @@ tbody td {
 
 tbody tr:hover { background: var(--paper-2); }
 
-td[contenteditable="true"] { cursor: text; outline: none; min-width: 60px; }
-td[contenteditable="true"]:focus { box-shadow: inset 0 0 0 1px var(--steel); background: var(--sk-card); }
-td[contenteditable="true"]:empty::before { content: attr(data-placeholder); color: var(--ink-faint); }
+td[contenteditable="true"]:not(.ui-cell-edit) { cursor: text; outline: none; min-width: 60px; }
+td[contenteditable="true"]:not(.ui-cell-edit):focus { box-shadow: inset 0 0 0 1px var(--steel); background: var(--sk-card); }
+td[contenteditable="true"]:not(.ui-cell-edit):empty::before { content: attr(data-placeholder); color: var(--ink-faint); }
 
 td.num-col { font-family: var(--sk-font-ui); font-variant-numeric: tabular-nums; font-size: 12px; white-space: nowrap; }
 
-input[type="date"], input[type="url"], select {
+input[type="date"]:not([class*="ui-"]), input[type="url"]:not([class*="ui-"]), select:not([class*="ui-"]) {
   font-family: var(--sk-font-ui);
   font-size: 13px;
   border: 1px solid transparent;
@@ -187,8 +187,8 @@ input[type="date"], input[type="url"], select {
   width: 100%;
   border-radius: var(--radius);
 }
-input[type="date"]:hover, input[type="url"]:hover, select:hover { border-color: var(--line); }
-input[type="date"]:focus, input[type="url"]:focus, select:focus {
+:is(input[type="date"]:not([class*="ui-"]), input[type="url"]:not([class*="ui-"]), select:not([class*="ui-"])):hover { border-color: var(--line); }
+:is(input[type="date"]:not([class*="ui-"]), input[type="url"]:not([class*="ui-"]), select:not([class*="ui-"])):focus {
   outline: none; box-shadow: inset 0 0 0 1px var(--steel); background: var(--sk-card);
 }
 

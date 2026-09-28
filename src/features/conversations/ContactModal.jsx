@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { todayLocal } from '../../lib/format'
+import { Modal } from '../../ui'
 
 export default function ContactModal({ person, entries, onUpdate, onAddEntry, onClose }) {
   const [date, setDate] = useState(todayLocal)
@@ -14,15 +15,11 @@ export default function ContactModal({ person, entries, onUpdate, onAddEntry, on
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-title-group">
-            <input className="modal-title-input" type="text" defaultValue={person.name} placeholder="Name" onBlur={e => onUpdate('name', e.target.value)} />
-            <input className="modal-subtitle-input" type="text" defaultValue={person.company} placeholder="Company" onBlur={e => onUpdate('company', e.target.value)} />
-          </div>
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
+    <Modal
+      onClose={onClose}
+      title={<input className="modal-title-input" type="text" defaultValue={person.name} placeholder="Name" aria-label="Name" onBlur={e => onUpdate('name', e.target.value)} />}
+      subtitle={<input className="modal-subtitle-input" type="text" defaultValue={person.company} placeholder="Company" aria-label="Company" onBlur={e => onUpdate('company', e.target.value)} />}
+    >
         <div className="detail-grid modal-grid" style={{ paddingBottom: 10 }}>
           <label>Email<input type="text" placeholder="name@company.com" defaultValue={person.email || ''} onBlur={e => onUpdate('email', e.target.value)} /></label>
           <label>Phone<input type="text" placeholder="phone number" defaultValue={person.phone || ''} onBlur={e => onUpdate('phone', e.target.value)} /></label>
@@ -50,7 +47,6 @@ export default function ContactModal({ person, entries, onUpdate, onAddEntry, on
             ))}
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

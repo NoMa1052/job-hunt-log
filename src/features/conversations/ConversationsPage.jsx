@@ -1,10 +1,8 @@
 import { useState } from 'react'
 import { useData } from '../../state/DataProvider'
 import { toCSV, downloadCSV } from '../../lib/format'
-import { EditableCell, PersonCell } from '../../components/cells'
+import { ConfirmDialog, EditableActionCell, EditableCell, FilterPopover } from '../../ui'
 import CollectionState from '../../components/CollectionState'
-import ConfirmDialog from '../../components/ConfirmDialog'
-import useDismissPopovers from '../../components/useDismissPopovers'
 import ContactModal from './ContactModal'
 
 const EXPORT_HEADERS = [
@@ -19,10 +17,8 @@ export default function ConversationsPage() {
   const entries = data.entries.rows
 
   const [peopleFilters, setPeopleFilters] = useState({})
-  const [openFilterCol, setOpenFilterCol] = useState(null)
   const [contactPersonId, setContactPersonId] = useState(null)
   const [confirmId, setConfirmId] = useState(null)
-  useDismissPopovers(() => setOpenFilterCol(null))
 
   async function addPerson() {
     const row = await add('people', { name: '', company: '', email: '', phone: '', other_contact: '' })
@@ -58,19 +54,7 @@ export default function ConversationsPage() {
   }
 
   function filterHeader(key, label) {
-    const active = (peopleFilters[key] || '').trim()
-    return (
-      <div className="popover-wrap">
-        <button className={'col-label-btn' + (active ? ' active-filter' : '')} onClick={() => setOpenFilterCol(openFilterCol === key ? null : key)}>
-          {label}{active && <span className="filter-dot" />}
-        </button>
-        {openFilterCol === key && (
-          <div className="popover">
-            <input autoFocus className="col-filter" placeholder="filter…" value={peopleFilters[key] || ''} onChange={e => setPeopleFilters(prev => ({ ...prev, [key]: e.target.value }))} />
-          </div>
-        )}
-      </div>
-    )
+    return <FilterPopover label={label} value={peopleFilters[key]} onChange={v => setPeopleFilters(prev => ({ ...prev, [key]: v }))} />
   }
 
   return (
@@ -98,7 +82,7 @@ export default function ConversationsPage() {
               const last = lastContactFor(p.id)
               return (
                 <tr key={p.id} className="app-row">
-                  <PersonCell value={p.name} onSave={v => updatePerson(p.id, 'name', v)} onOpenModal={() => setContactPersonId(p.id)} />
+                  <EditableActionCell value={p.name} placeholder="Name" onSave={v => updatePerson(p.id, 'name', v)} onOpen={() => setContactPersonId(p.id)} />
                   <EditableCell value={p.company} placeholder="Company" onSave={v => updatePerson(p.id, 'company', v)} />
                   <td className="num-col">{last ? last : '—'}</td>
                   <td className="num-col" style={{ textAlign: 'center' }}>{entriesFor(p.id).length}</td>

@@ -2,9 +2,8 @@ import { useState } from 'react'
 import { useData } from '../../state/DataProvider'
 import { safeUrl } from '../../lib/url'
 import { toCSV, downloadCSV, formatDate, formatDateTimeShort } from '../../lib/format'
-import { EditableCell } from '../../components/cells'
+import { ConfirmDialog, EditableCell, Icon } from '../../ui'
 import CollectionState from '../../components/CollectionState'
-import ConfirmDialog from '../../components/ConfirmDialog'
 import CompanyNotesModal from './CompanyNotesModal'
 
 export default function CompaniesPage() {
@@ -68,7 +67,7 @@ export default function CompaniesPage() {
                     <div className="link-with-open">
                       <input type="url" placeholder="paste careers page link" defaultValue={c.careers_link || ''} onBlur={e => updateCompany(c.id, 'careers_link', e.target.value)} />
                       {href && (
-                        <a href={href} target="_blank" rel="noopener noreferrer" title="Open careers page" onClick={() => updateCompany(c.id, 'last_clicked', new Date().toISOString())}><i className="ti ti-external-link" /></a>
+                        <a href={href} target="_blank" rel="noopener noreferrer" title="Open careers page" onClick={() => updateCompany(c.id, 'last_clicked', new Date().toISOString())}><Icon name="external-link" /></a>
                       )}
                     </div>
                   </td>
@@ -76,7 +75,7 @@ export default function CompaniesPage() {
                   <td className="num-col">{formatDateTimeShort(c.last_clicked)}</td>
                   <td>
                     <button className="notes-btn" onClick={() => setNotesCompanyId(c.id)}>
-                      <i className="ti ti-notes" /> {noteCount > 0 ? `${noteCount} note${noteCount > 1 ? 's' : ''}` : 'Add note'}
+                      <Icon name="notes" /> {noteCount > 0 ? `${noteCount} note${noteCount > 1 ? 's' : ''}` : 'Add note'}
                     </button>
                   </td>
                   <td><button className="del-btn" title="Delete row" onClick={() => setConfirmId(c.id)}>×</button></td>

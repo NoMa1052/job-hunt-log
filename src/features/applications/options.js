@@ -1,16 +1,16 @@
 export const STATUS_OPTIONS = [
-  { value: 'applied', label: 'Applied', cls: 'st-applied' },
-  { value: 'screen', label: 'Phone screen', cls: 'st-screen' },
-  { value: 'interview', label: 'Interviewing', cls: 'st-interview' },
-  { value: 'offer', label: 'Offer', cls: 'st-offer' },
-  { value: 'rejected', label: 'Rejected', cls: 'st-rejected' },
-  { value: 'withdrawn', label: 'Withdrawn', cls: 'st-withdrawn' }
+  { value: 'applied', label: 'Applied', tone: 'blue' },
+  { value: 'screen', label: 'Phone screen', tone: 'amber' },
+  { value: 'interview', label: 'Interviewing', tone: 'amber' },
+  { value: 'offer', label: 'Offer', tone: 'green' },
+  { value: 'rejected', label: 'Rejected', tone: 'red' },
+  { value: 'withdrawn', label: 'Withdrawn', tone: 'neutral' }
 ]
 
 export const PRIORITY_OPTIONS = [
-  { value: 'high', label: 'High', cls: 'pr-high' },
-  { value: 'medium', label: 'Medium', cls: 'pr-medium' },
-  { value: 'low', label: 'Low', cls: 'pr-low' }
+  { value: 'high', label: 'High', tone: 'red' },
+  { value: 'medium', label: 'Medium', tone: 'blue' },
+  { value: 'low', label: 'Low', tone: 'neutral' }
 ]
 
 export const ALL_COLUMNS = [
@@ -42,11 +42,6 @@ export const EXPORT_HEADERS = [
   { key: 'interview_date', label: 'Interview Date' }, { key: 'notes', label: 'Notes' }
 ]
 
-export function optionClass(list, value, fallback) {
-  const m = list.find(s => s.value === value)
-  return m ? m.cls : fallback
-}
-
 export function statusCounts(applications) {
   const counts = { applied: 0, screen: 0, interview: 0, offer: 0, rejected: 0, withdrawn: 0 }
   applications.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++ })
@@ -67,10 +62,4 @@ export function passesFilters(app, filters) {
     }
   }
   return true
-}
-
-export function hasActiveFilter(col, filters) {
-  if (col.type === 'text') return !!(filters[col.key] && filters[col.key].trim())
-  if (col.type === 'select') return !!(filters[col.key] && filters[col.key].length < col.options.length)
-  return false
 }
