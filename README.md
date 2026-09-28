@@ -50,8 +50,8 @@ If `migration list` shows a local migration older than the newest remote one, `d
 
 Other tables:
 
-- `table_views`: saved Applications views (columns, sort, filters), one row per view, own rows only.
-- `profiles`: one row per user (name, target roles, location, bio, default view, date format), created on first save, own row only. A default view must be one of the user's own views.
+- `table_views`: saved views for each tab (`applications`, `people` for Conversations, `companies`): columns, sort and filters, one row per view, own rows only. `is_default` marks the view a tab opens with (at most one per user and tab).
+- `profiles`: one row per user (name, target roles, location, bio, date format), created on first save, own row only. `default_view_id` is the older Applications-only default, kept for compatibility; the app now uses `table_views.is_default`.
 - `delete_my_account()`: a function signed-in users call to delete their own account. Every user table cascades from `auth.users`, so all of their data goes with it. It can only ever delete the caller; signed-out requests can't run it.
 
 The `archive` schema (not exposed by the API) keeps deprecated data that was moved out of `public` instead of deleted: the old `conversations_legacy` table and the old `companies.notes` column.

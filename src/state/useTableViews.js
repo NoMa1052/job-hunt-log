@@ -1,25 +1,45 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { deleteRow, fetchAll, insertRow, isMissing, updateRow } from '../lib/db'
+import { DbError, deleteRow, fetchAll, friendlyMessage, insertRow, isMissing, updateRow } from '../lib/db'
+import { supabase } from '../lib/supabaseClient'
 import { clearPref, loadPref } from '../lib/storage'
 import { useData } from './DataProvider'
 
 const LEGACY_KEYS = ['col-order', 'hidden-cols', 'col-filters']
 const SAVE_DELAY_MS = 600
 
-// Saved views for one table, synced through Supabase. `toConfig` turns the
-// old browser settings into a view config for the one-time import.
+// Is the per-tab default view (and views beyond Applications) in the
+// database yet? False until that migration has run.
+async function probeDefaults() {
+  const { error } = await supabase.from('table_views').select('is_default').limit(1)
+  if (!error) return true
+  const err = new DbError(friendlyMessage(error), error)
+  if (isMissing(err)) return false
+  throw err
+}
+
+// Saved views for one table, synced through Supabase. `legacyToConfig` turns
+// the old browser settings into a view config for the one-time import.
+//
+// `defaultId` is the view that opens first on this tab (null for the
+// built-in "All" view). Before the per-tab defaults migration, only
+// Applications has views, and its default comes from the profile instead
+// (`perTabDefaults` is false).
 export default function useTableViews(tableName, { legacyToConfig } = {}) {
   const { userId, track } = useData()
   const [views, setViews] = useState([])
   const [status, setStatus] = useState('loading') // loading | ready | unavailable | error
+  const [perTabDefaults, setPerTabDefaults] = useState(false)
   const timers = useRef({})
   const importedRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
-    fetchAll('table_views', { orderBy: 'position' })
-      .then(rows => {
+    Promise.all([fetchAll('table_views', { orderBy: 'position' }), probeDefaults()])
+      .then(([rows, supported]) => {
         if (cancelled) return
+        setPerTabDefaults(supported)
+        // Only Applications had views before that migration.
+        if (!supported && tableName !== 'applications') { setStatus('unavailable'); return }
         setViews(rows.filter(r => r.table_name === tableName))
         setStatus('ready')
       })
@@ -49,6 +69,20 @@ export default function useTableViews(tableName, { legacyToConfig } = {}) {
     if (!ok) setViews(before)
   }, [views, track])
 
+  // One default per tab: clear the old one first (the database allows only
+  // one), then mark the new one. null goes back to the built-in view.
+  const setDefault = useCallback(async id => {
+    const before = views
+    setViews(prev => prev.map(v => ({ ...v, is_default: v.id === id })))
+    const { ok } = await track((async () => {
+      const { error } = await supabase.from('table_views').update({ is_default: false }).eq('table_name', tableName).eq('is_default', true)
+      if (error) throw new DbError(friendlyMessage(error), error)
+      if (id) await updateRow('table_views', id, { is_default: true })
+    })())
+    if (!ok) setViews(before)
+    return ok
+  }, [views, track, tableName])
+
   // Config edits apply instantly and save shortly after the last change.
   const saveConfig = useCallback((id, config) => {
     setViews(prev => prev.map(v => (v.id === id ? { ...v, config } : v)))
@@ -74,5 +108,7 @@ export default function useTableViews(tableName, { legacyToConfig } = {}) {
       .then(row => { if (row) done() })
   }, [status, views.length, userId, create, legacyToConfig])
 
-  return { views, status, create, rename, remove, saveConfig }
+  const defaultId = views.find(v => v.is_default)?.id || null
+
+  return { views, status, perTabDefaults, defaultId, create, rename, remove, saveConfig, setDefault }
 }

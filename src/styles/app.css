@@ -246,19 +246,28 @@ button, input, select, textarea { font-family: inherit; }
 .sort-btn:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; border-radius: 2px; }
 .sort-icon { display: inline-flex; width: 12px; }
 
-.filter-popover { width: min(560px, calc(100vw - 32px)); }
-.filter-builder { display: flex; flex-direction: column; gap: var(--space-2); }
-.filter-empty { margin: var(--space-1) var(--space-1) var(--space-2); font-size: 14px; color: var(--ink-muted); }
-.filter-row { display: grid; grid-template-columns: 44px 1fr 1fr 1.3fr 28px; gap: var(--space-2); align-items: start; }
-.filter-join { font-size: 13px; line-height: 36px; color: var(--ink-muted); }
-.filter-row .sk-input { height: 36px; font-size: 14px; padding: 0 8px; }
-.filter-options { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); padding-top: 6px; }
+.customize-popover { width: min(440px, calc(100vw - 32px)); max-height: min(640px, calc(100vh - 140px)); overflow-y: auto; padding: 0; }
+.customize-section { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); }
+.customize-title { margin: 0 0 var(--space-2); font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-muted); }
+.customize-row { display: flex; gap: var(--space-2); }
+.customize-row .sk-input, .filter-row .sk-input { height: 36px; font-size: 14px; padding: 0 8px; flex: 1; min-width: 0; }
+.customize-footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) var(--space-4); }
+.customize-footer .name-form { width: 100%; padding: 0; }
+.filter-builder { display: flex; flex-direction: column; gap: var(--space-3); }
+.filter-empty { margin: 0; font-size: 14px; color: var(--ink-muted); }
+.filter-row { display: grid; grid-template-columns: 1fr 1fr 28px; gap: var(--space-2); align-items: center; }
+.filter-value { grid-column: 1 / 3; }
+.filter-value .sk-input { width: 100%; }
+.filter-options { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); }
 .filter-option { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
 .filter-option input { accent-color: var(--indigo); }
-.filter-row .ui-icon-btn { margin-top: 4px; }
-.filter-footer { display: flex; align-items: center; justify-content: space-between; padding-top: var(--space-1); border-top: 1px solid var(--line); margin-top: var(--space-1); }
+.filter-footer { display: flex; align-items: center; justify-content: space-between; }
+.view-default {
+  margin-left: 6px; padding: 1px 6px; border-radius: var(--radius-full);
+  background: var(--surface-sunken); color: var(--ink-muted); font-size: 11px; line-height: 16px; font-weight: 500; vertical-align: 1px;
+}
 
-.columns-menu { list-style: none; margin: 0; padding: 0; min-width: 260px; }
+.columns-menu { list-style: none; margin: 0; padding: 0; }
 .columns-menu .col-row .ui-icon-btn:disabled { opacity: 0.3; cursor: default; }
 
 .name-form { display: flex; flex-direction: column; gap: var(--space-3); width: 260px; padding: var(--space-1); }
@@ -273,15 +282,11 @@ button, input, select, textarea { font-family: inherit; }
 .menu-item--danger { color: var(--danger); }
 
 @media (max-width: 720px) {
-  .filter-row { grid-template-columns: 1fr 1fr 28px; }
-  .filter-join { display: none; }
-  .filter-value { grid-column: 1 / 3; }
   .views-bar { flex-wrap: wrap; }
-  /* On phones the filter builder opens as a bottom sheet. */
-  .ui-popover.filter-popover {
+  /* On phones Customize opens as a bottom sheet. */
+  .ui-popover.customize-popover {
     position: fixed; top: auto; left: 0; right: 0; bottom: 0; width: auto;
-    max-height: 75vh; overflow-y: auto; border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    padding: var(--space-4);
+    max-height: 80vh; border-radius: var(--radius-lg) var(--radius-lg) 0 0; z-index: 60;
   }
 }
 .user-menu-name { display: block; color: var(--ink); font-weight: 600; font-size: 14px; }
@@ -329,3 +334,6 @@ button, input, select, textarea { font-family: inherit; }
   .danger-zone, .connection-row { flex-direction: column; align-items: flex-start; }
   .settings-card { padding: var(--space-4); }
 }
+.settings-fieldset + .settings-fieldset { margin-top: var(--space-6); }
+.settings-fieldset .settings-grid { margin-top: var(--space-2); grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 720px) { .settings-fieldset .settings-grid { grid-template-columns: 1fr; } }
