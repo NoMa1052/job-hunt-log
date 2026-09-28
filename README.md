@@ -1,33 +1,34 @@
 # Job Hunt Log
 
-Applications ledger + networking conversation log. React + Vite, data in Supabase, deployed on Vercel.
+Applications ledger, networking conversation log and companies watchlist. React + Vite, data in Supabase (auth + Postgres with row-level security), deployed on Vercel.
 
-## 1. Supabase (the database)
+## Environments
 
-1. Go to supabase.com, create a free project.
-2. In the project, open the SQL Editor and run everything in `supabase-schema.sql` (creates the two tables and seeds your MLB row).
-3. Go to Project Settings → API. Copy the **Project URL** and the **anon public** key — you'll need both in step 3.
+| Environment | Supabase | Vercel |
+|---|---|---|
+| Production | production project | Production deployment (`main`) |
+| Preview / local | Supabase dev branch (never production) | Preview deployments, `npm run dev` |
 
-No auth or row-level security is set up, so the anon key has full read/write on these two tables. That's fine for a personal tracker with an unguessable URL; skip if you'd rather lock it down later.
+Production has live user data. Don't point local dev or Vercel Preview deployments at the production database: the Preview-scoped `VITE_SUPABASE_*` variables in Vercel must hold the dev branch's values.
 
-## 2. Push to GitHub
+## Local development
 
-1. Create a new repo, e.g. `job-hunt-log`.
-2. Copy all these files into it (keep the folder structure — `src/` stays a folder).
-3. Commit and push, same as your other projects.
-
-## 3. Deploy on Vercel
-
-1. Import the repo in Vercel (framework preset: Vite).
-2. Before the first deploy, add two environment variables in Vercel's project settings:
-   - `VITE_SUPABASE_URL` → the Project URL from step 1
-   - `VITE_SUPABASE_ANON_KEY` → the anon key from step 1
-3. Deploy. Vercel will auto-redeploy on every push after this, same as your FBA tracker.
-
-## Local dev (optional)
+Requires Node 24 (see `.nvmrc`).
 
 ```
-npm install
-cp .env.example .env.local   # fill in your Supabase URL + anon key
+npm ci
+cp .env.example .env.local   # fill in the dev branch URL + anon key
 npm run dev
 ```
+
+`.env*` files are git-ignored (except `.env.example`). Never commit real keys.
+
+## Database
+
+All user tables (`applications`, `companies`, `company_notes`, `people`, `conversation_entries`) have a `user_id` column and RLS policies that limit each user to their own rows. The client never filters by `user_id` itself; it relies on RLS and on the `user_id default auth.uid()` column default.
+
+Schema changes go in as migration files applied to a Supabase dev branch first, never as direct edits to production. The `supabase-*.sql` files at the repo root are the historical, hand-applied migrations and don't fully match production. Don't run them against a new project.
+
+## Deploying
+
+Vercel builds on every push. Merges to `main` deploy to production.
