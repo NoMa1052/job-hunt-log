@@ -56,3 +56,24 @@ describe('initialsFor', async () => {
     expect(initialsFor('')).toBe('?')
   })
 })
+
+describe('date format preference', () => {
+  const now = new Date(2026, 8, 28)
+  it('formats dates the way the user chose', () => {
+    expect(formatShortDate('2026-07-27', now, 'month_day')).toBe('Jul 27')
+    expect(formatShortDate('2026-07-27', now, 'day_month')).toBe('27 Jul')
+    expect(formatShortDate('2026-07-27', now, 'iso')).toBe('2026-07-27')
+    expect(formatShortDate('2025-07-27', now, 'day_month')).toBe('27 Jul 2025')
+    expect(formatShortDate('2026-09-28', now, 'day_month')).toBe('28 Sep')
+  })
+})
+
+describe('initialsFromName', async () => {
+  const { initialsFromName } = await import('./initials')
+  it('uses first and last name', () => {
+    expect(initialsFromName('Pat Lee')).toBe('PL')
+    expect(initialsFromName('  mary ann smith ')).toBe('MS')
+    expect(initialsFromName('Madonna')).toBe('MA')
+    expect(initialsFromName('')).toBe('')
+  })
+})

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useData } from '../../state/DataProvider'
+import { useProfile } from '../../state/ProfileProvider'
 import useTableViews from '../../state/useTableViews'
 import { safeUrl } from '../../lib/url'
 import { toCSV, downloadCSV, formatShortDate } from '../../lib/format'
@@ -14,8 +15,11 @@ import ViewTabs, { ALL_VIEW } from './ViewTabs'
 import { EXPORT_HEADERS, PRIORITY_OPTIONS, followUp, optionLabel, statusChip } from './options'
 import { DEFAULT_CONFIG, applyView, column, legacyToConfig, nextSort, normalizeConfig, sameConfig } from './views'
 
-export default function ApplicationsPage({ defaultViewId } = {}) {
+export default function ApplicationsPage() {
   const { data, add, update, remove, reload } = useData()
+  const { profile, status: profileStatus } = useProfile()
+  const defaultViewId = profile.default_view_id
+  const dateFormat = profile.date_format
   const applications = data.applications.rows
   const tableViews = useTableViews('applications', { legacyToConfig })
   const [confirmId, setConfirmId] = useState(null)
@@ -42,7 +46,8 @@ export default function ApplicationsPage({ defaultViewId } = {}) {
 
   function selectView(id) {
     const params = new URLSearchParams(search)
-    if (id === ALL_VIEW) params.delete('view'); else params.set('view', id)
+    // With a default view set, "All applications" has to be explicit.
+    if (id === ALL_VIEW && !defaultViewId) params.delete('view'); else params.set('view', id)
     const qs = params.toString()
     navigate({ pathname: '/app/applications', search: qs ? `?${qs}` : '' })
   }
@@ -70,7 +75,8 @@ export default function ApplicationsPage({ defaultViewId } = {}) {
   const viewsUnavailable = tableViews.status === 'unavailable' || tableViews.status === 'error'
   // A link to a saved view waits for the views to load instead of flashing
   // the wrong layout first.
-  const waitingForView = requestedView !== ALL_VIEW && tableViews.status === 'loading'
+  const waitingForView = (requestedView !== ALL_VIEW && tableViews.status === 'loading')
+    || (!searchParams.get('view') && profileStatus === 'loading')
 
   // A link to an application that doesn't exist (deleted, or someone else's)
   // falls back to the list once the data has loaded.
@@ -134,7 +140,7 @@ export default function ApplicationsPage({ defaultViewId } = {}) {
                   if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setEditingAppId(a.id) }
                 }}
               >
-                {visibleColumns.map(col => renderAppCell(col, a))}
+                {visibleColumns.map(col => renderAppCell(col, a, dateFormat))}
                 <td className="col-actions">
                   <IconButton icon="x" size="sm" label="Delete application" onClick={() => setConfirmId(a.id)} />
                 </td>
@@ -169,7 +175,7 @@ export default function ApplicationsPage({ defaultViewId } = {}) {
 
 const dash = <span aria-label="None">—</span>
 
-function renderAppCell(col, a) {
+function renderAppCell(col, a, dateFormat) {
   switch (col.key) {
     case 'company':
       return <td key="company" className="sk-cell-company">{a.company || <span className="sk-cell-meta">Untitled</span>}</td>
@@ -186,9 +192,9 @@ function renderAppCell(col, a) {
     case 'location': case 'source': case 'salary': case 'hiring_manager': case 'connections':
       return <td key={col.key} className="sk-cell-meta">{a[col.key] || dash}</td>
     case 'date_applied': case 'interview_date':
-      return <td key={col.key} className="sk-cell-meta">{formatShortDate(a[col.key]) || dash}</td>
+      return <td key={col.key} className="sk-cell-meta">{formatShortDate(a[col.key], undefined, dateFormat) || dash}</td>
     case 'follow_up_date': {
-      const f = followUp(a)
+      const f = followUp(a, undefined, dateFormat)
       return <td key={col.key}><FollowUp state={f.state}>{f.text}</FollowUp></td>
     }
     case 'status': {

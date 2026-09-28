@@ -62,13 +62,13 @@ export function optionLabel(options, value, fallback) {
 }
 
 // What the follow-up column shows for an application.
-export function followUp(app, today = todayLocal()) {
+export function followUp(app, today = todayLocal(), format = 'month_day') {
   if (CLOSED_STATUSES.includes(app.status)) return { state: 'none', text: 'No follow-up' }
   if (!app.follow_up_date) return { state: 'none', text: 'Set a date' }
   const late = daysBetween(app.follow_up_date, today)
   if (late > 0) return { state: 'overdue', text: `Follow up, ${late} ${late === 1 ? 'day' : 'days'} late` }
   if (late === 0) return { state: 'due', text: 'Follow up today' }
-  return { state: 'upcoming', text: formatShortDate(app.follow_up_date) }
+  return { state: 'upcoming', text: formatShortDate(app.follow_up_date, undefined, format) }
 }
 
 export function followUpsDue(applications, today = todayLocal()) {

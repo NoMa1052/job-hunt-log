@@ -48,6 +48,12 @@ npx supabase db push
 
 If `migration list` shows a local migration older than the newest remote one, `db push` needs `--include-all`. Migrations are written to be idempotent so that this is safe.
 
+Other tables:
+
+- `table_views`: saved Applications views (columns, sort, filters), one row per view, own rows only.
+- `profiles`: one row per user (name, target roles, location, bio, default view, date format), created on first save, own row only. A default view must be one of the user's own views.
+- `delete_my_account()`: a function signed-in users call to delete their own account. Every user table cascades from `auth.users`, so all of their data goes with it. It can only ever delete the caller; signed-out requests can't run it.
+
 The `archive` schema (not exposed by the API) keeps deprecated data that was moved out of `public` instead of deleted: the old `conversations_legacy` table and the old `companies.notes` column.
 
 `supabase/legacy/` holds the historical, hand-applied SQL that built the original schema. It's kept for reference only and doesn't match production; don't run it.

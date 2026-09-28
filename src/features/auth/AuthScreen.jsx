@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { clearAccountDeleted, wasAccountDeleted } from '../../lib/account'
 import { supabase } from '../../lib/supabaseClient'
 import brand from '../../config/brand'
 import { Button, Card, Field, Input } from '../../ui'
@@ -15,7 +16,8 @@ export default function AuthScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [info, setInfo] = useState('')
+  const [info, setInfo] = useState(() => wasAccountDeleted() ? 'Your account and all of its data were deleted.' : '')
+  useEffect(() => { clearAccountDeleted() }, [])
   const [loading, setLoading] = useState(false)
 
   function switchMode(next) { setMode(next); setError(''); setInfo('') }

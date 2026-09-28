@@ -1,17 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { deleteRow, fetchAll, insertRow, updateRow } from '../lib/db'
+import { deleteRow, fetchAll, insertRow, isMissing, updateRow } from '../lib/db'
 import { clearPref, loadPref } from '../lib/storage'
 import { useData } from './DataProvider'
 
 const LEGACY_KEYS = ['col-order', 'hidden-cols', 'col-filters']
 const SAVE_DELAY_MS = 600
-
-// Is this "the table doesn't exist yet" (migration not applied)?
-function isMissingTable(error) {
-  const code = error?.cause?.code
-  const message = error?.cause?.message || ''
-  return code === '42P01' || code === 'PGRST205' || (/table_views/.test(message) && /schema cache|does not exist/.test(message))
-}
 
 // Saved views for one table, synced through Supabase. `toConfig` turns the
 // old browser settings into a view config for the one-time import.
@@ -30,7 +23,7 @@ export default function useTableViews(tableName, { legacyToConfig } = {}) {
         setViews(rows.filter(r => r.table_name === tableName))
         setStatus('ready')
       })
-      .catch(e => { if (!cancelled) setStatus(isMissingTable(e) ? 'unavailable' : 'error') })
+      .catch(e => { if (!cancelled) setStatus(isMissing(e) ? 'unavailable' : 'error') })
     return () => { cancelled = true }
   }, [tableName])
 

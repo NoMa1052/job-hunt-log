@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useData } from '../../state/DataProvider'
+import { useProfile } from '../../state/ProfileProvider'
 import { toCSV, downloadCSV, formatShortDate } from '../../lib/format'
 import { Button, ConfirmDialog, EditableActionCell, EditableCell, FilterPopover, IconButton } from '../../ui'
 import CollectionState from '../../components/CollectionState'
@@ -14,6 +15,7 @@ const EXPORT_HEADERS = [
 
 export default function ConversationsPage() {
   const { data, add, update, remove, reload } = useData()
+  const { profile } = useProfile()
   const people = data.people.rows
   const entries = data.entries.rows
 
@@ -86,7 +88,7 @@ export default function ConversationsPage() {
                 <tr key={p.id}>
                   <EditableActionCell value={p.name} placeholder="Name" onSave={v => updatePerson(p.id, 'name', v)} onOpen={() => setContactPersonId(p.id)} />
                   <EditableCell value={p.company} placeholder="Company" className="sk-cell-meta" onSave={v => updatePerson(p.id, 'company', v)} />
-                  <td className="sk-cell-meta">{last ? formatShortDate(last) : '—'}</td>
+                  <td className="sk-cell-meta">{last ? formatShortDate(last, undefined, profile.date_format) : '—'}</td>
                   <td className="sk-cell-meta center">{entriesFor(p.id).length}</td>
                   <td className="col-actions"><IconButton icon="x" size="sm" label="Delete person" onClick={() => setConfirmId(p.id)} /></td>
                 </tr>

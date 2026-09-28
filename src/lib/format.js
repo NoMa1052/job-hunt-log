@@ -13,13 +13,28 @@ export function parseYmd(value) {
   return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null
 }
 
-// "Jul 27", or "Jul 27, 2025" when it isn't the current year.
-export function formatShortDate(value, now = new Date()) {
+// Date formats users can pick in Settings.
+export const DATE_FORMATS = [
+  { value: 'month_day', label: 'Jul 27' },
+  { value: 'day_month', label: '27 Jul' },
+  { value: 'iso', label: '2026-07-27' },
+]
+
+// "Jul 27" (or "27 Jul", or "2026-07-27"); the year is added to the short
+// formats only when it isn't the current year.
+export function formatShortDate(value, now = new Date(), format = 'month_day') {
   if (!value) return ''
   const d = parseYmd(value) || new Date(value)
   if (Number.isNaN(d.getTime())) return ''
+  if (format === 'iso') return todayLocal(d)
+  const withYear = d.getFullYear() !== now.getFullYear()
+  if (format === 'day_month') {
+    // Built by hand so months match the default format ("Sep", not "Sept").
+    const month = d.toLocaleDateString('en-US', { month: 'short' })
+    return `${d.getDate()} ${month}${withYear ? ` ${d.getFullYear()}` : ''}`
+  }
   const opts = { month: 'short', day: 'numeric' }
-  if (d.getFullYear() !== now.getFullYear()) opts.year = 'numeric'
+  if (withYear) opts.year = 'numeric'
   return d.toLocaleDateString('en-US', opts)
 }
 
