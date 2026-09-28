@@ -1,5 +1,9 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
-import { supabase } from './supabaseClient'
+import { useEffect, useState, useRef } from 'react'
+import { supabase } from './lib/supabaseClient'
+import { DataProvider, useData } from './state/DataProvider'
+import { loadPref, savePref } from './lib/storage'
+import { safeUrl } from './lib/url'
+import { todayLocal, formatDate as formatDateTime, formatDateTimeShort as formatClicked, toCSV, downloadCSV } from './lib/format'
 
 const STATUS_OPTIONS = [
   { value: 'applied', label: 'Applied', cls: 'st-applied' },
@@ -38,55 +42,41 @@ function optionClass(list, value, fallback) {
   const m = list.find(s => s.value === value)
   return m ? m.cls : fallback
 }
-function loadLocal(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw !== null ? JSON.parse(raw) : fallback
-  } catch (e) { return fallback }
-}
-function saveLocal(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)) } catch (e) { /* ignore */ }
-}
-function csvEscape(v) {
-  const s = v === null || v === undefined ? '' : String(v)
-  if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"'
-  return s
-}
-function toCSV(headers, rows) {
-  const lines = [headers.map(h => csvEscape(h.label)).join(',')]
-  rows.forEach(r => { lines.push(headers.map(h => csvEscape(h.value ? h.value(r) : r[h.key])).join(',')) })
-  return lines.join('\n')
-}
-function downloadCSV(filename, csv) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
-}
-function formatDateTime(ts) {
-  if (!ts) return ''
-  const d = new Date(ts)
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
 export default function App() {
   const [session, setSession] = useState(undefined)
-  const [tab, setTab] = useState('applications')
-  const [applications, setApplications] = useState([])
-  const [people, setPeople] = useState([])
-  const [entries, setEntries] = useState([])
-  const [companies, setCompanies] = useState([])
-  const [companyNotes, setCompanyNotes] = useState([])
-  const [saving, setSaving] = useState('')
 
-  const [columnOrder, setColumnOrder] = useState(() => loadLocal('jhl-col-order', DEFAULT_ORDER))
-  const [hiddenCols, setHiddenCols] = useState(() => new Set(loadLocal('jhl-hidden-cols', DEFAULT_HIDDEN)))
-  const [colFilters, setColFilters] = useState(() => loadLocal('jhl-col-filters', {}))
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session))
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
+    return () => listener.subscription.unsubscribe()
+  }, [])
+
+  if (session === undefined) {
+    return <div className="wrap"><p className="auth-loading">Loading…</p></div>
+  }
+  if (session === null) {
+    return <AuthScreen />
+  }
+  // Keyed by user: switching accounts remounts and clears everything in memory.
+  return (
+    <DataProvider key={session.user.id} userId={session.user.id}>
+      <Workspace />
+    </DataProvider>
+  )
+}
+
+function Workspace() {
+  const { userId, data, add, update, remove, reload } = useData()
+  const [tab, setTab] = useState('applications')
+  const applications = data.applications.rows
+  const people = data.people.rows
+  const entries = data.entries.rows
+  const companies = data.companies.rows
+  const companyNotes = data.companyNotes.rows
+
+  const [columnOrder, setColumnOrder] = useState(() => loadPref(userId, 'col-order', DEFAULT_ORDER))
+  const [hiddenCols, setHiddenCols] = useState(() => new Set(loadPref(userId, 'hidden-cols', DEFAULT_HIDDEN)))
+  const [colFilters, setColFilters] = useState(() => loadPref(userId, 'col-filters', {}))
   const [peopleFilters, setPeopleFilters] = useState({})
   const [openFilterCol, setOpenFilterCol] = useState(null)
   const [openFilterPeopleCol, setOpenFilterPeopleCol] = useState(null)
@@ -99,18 +89,9 @@ export default function App() {
 
   const dragColIdxRef = useRef(null)
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
-    return () => listener.subscription.unsubscribe()
-  }, [])
-
-  useEffect(() => {
-    if (session) { loadApplications(); loadPeople(); loadEntries(); loadCompanies(); loadCompanyNotes() }
-  }, [session])
-  useEffect(() => { saveLocal('jhl-col-order', columnOrder) }, [columnOrder])
-  useEffect(() => { saveLocal('jhl-hidden-cols', [...hiddenCols]) }, [hiddenCols])
-  useEffect(() => { saveLocal('jhl-col-filters', colFilters) }, [colFilters])
+  useEffect(() => { savePref(userId, 'col-order', columnOrder) }, [userId, columnOrder])
+  useEffect(() => { savePref(userId, 'hidden-cols', [...hiddenCols]) }, [userId, hiddenCols])
+  useEffect(() => { savePref(userId, 'col-filters', colFilters) }, [userId, colFilters])
 
   useEffect(() => {
     function onClickOutside(e) {
@@ -124,106 +105,33 @@ export default function App() {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [])
 
-  async function loadApplications() {
-    const { data } = await supabase.from('applications').select('*').order('date_applied', { ascending: false, nullsFirst: false })
-    setApplications(data || [])
-  }
-  async function loadPeople() {
-    const { data } = await supabase.from('people').select('*').order('name')
-    setPeople(data || [])
-  }
-  async function loadEntries() {
-    const { data } = await supabase.from('conversation_entries').select('*').order('date', { ascending: false, nullsFirst: false })
-    setEntries(data || [])
-  }
-  async function loadCompanies() {
-    const { data } = await supabase.from('companies').select('*').order('created_at', { ascending: false })
-    setCompanies(data || [])
-  }
-  async function loadCompanyNotes() {
-    const { data } = await supabase.from('company_notes').select('*').order('created_at', { ascending: false })
-    setCompanyNotes(data || [])
-  }
-
-  const flagSaving = useCallback(() => {
-    setSaving('Saving…')
-    setTimeout(() => setSaving('Saved'), 400)
-  }, [])
-
   async function addApplication() {
-    const { data, error } = await supabase.from('applications').insert({
-      company: '', position: '', location: '', status: 'applied', priority: 'medium'
-    }).select().single()
-    if (!error && data) {
-      setApplications(prev => [data, ...prev])
-      setEditingAppId(data.id)
-    }
+    const row = await add('applications', { company: '', position: '', location: '', status: 'applied', priority: 'medium' })
+    if (row) setEditingAppId(row.id)
   }
-  async function updateApplication(id, field, value) {
-    setApplications(prev => prev.map(a => a.id === id ? { ...a, [field]: value } : a))
-    flagSaving()
-    await supabase.from('applications').update({ [field]: value }).eq('id', id)
-  }
-  async function deleteApplication(id) {
-    setApplications(prev => prev.filter(a => a.id !== id))
-    await supabase.from('applications').delete().eq('id', id)
-  }
+  const updateApplication = (id, field, value) => update('applications', id, field, value)
+  const deleteApplication = id => remove('applications', id)
 
   async function addPerson() {
-    const { data, error } = await supabase.from('people').insert({ name: '', company: '', email: '', phone: '', other_contact: '' }).select().single()
-    if (!error && data) {
-      setPeople(prev => [data, ...prev])
-      setContactPersonId(data.id)
-    }
+    const row = await add('people', { name: '', company: '', email: '', phone: '', other_contact: '' })
+    if (row) setContactPersonId(row.id)
   }
-  async function updatePerson(id, field, value) {
-    setPeople(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p))
-    flagSaving()
-    await supabase.from('people').update({ [field]: value }).eq('id', id)
-  }
-  async function deletePerson(id) {
-    setPeople(prev => prev.filter(p => p.id !== id))
-    setEntries(prev => prev.filter(e => e.person_id !== id))
-    await supabase.from('people').delete().eq('id', id)
-  }
-  async function addEntry(personId, { date, recommendation, notes }) {
-    const { data, error } = await supabase.from('conversation_entries').insert({ person_id: personId, date, recommendation, notes }).select().single()
-    if (!error && data) setEntries(prev => [data, ...prev])
-  }
+  const updatePerson = (id, field, value) => update('people', id, field, value)
+  const deletePerson = id => remove('people', id)
+  const addEntry = (personId, { date, recommendation, notes }) => add('entries', { person_id: personId, date, recommendation, notes })
 
-  async function addCompany() {
-    const { data, error } = await supabase.from('companies').insert({ company: '', careers_link: '' }).select().single()
-    if (!error && data) setCompanies(prev => [data, ...prev])
-  }
-  async function updateCompany(id, field, value) {
-    setCompanies(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c))
-    flagSaving()
-    await supabase.from('companies').update({ [field]: value }).eq('id', id)
-  }
-  async function deleteCompany(id) {
-    setCompanies(prev => prev.filter(c => c.id !== id))
-    setCompanyNotes(prev => prev.filter(n => n.company_id !== id))
-    await supabase.from('companies').delete().eq('id', id)
-  }
-  async function addCompanyNote(companyId, note) {
-    const { data, error } = await supabase.from('company_notes').insert({ company_id: companyId, note }).select().single()
-    if (!error && data) setCompanyNotes(prev => [data, ...prev])
-  }
+  const addCompany = () => add('companies', { company: '', careers_link: '' })
+  const updateCompany = (id, field, value) => update('companies', id, field, value)
+  const deleteCompany = id => remove('companies', id)
+  const addCompanyNote = (companyId, note) => add('companyNotes', { company_id: companyId, note })
+
   function appliedCountFor(companyName) {
     const target = (companyName || '').trim().toLowerCase()
     if (!target) return 0
     return applications.filter(a => (a.company || '').trim().toLowerCase() === target).length
   }
-  async function trackCareersClick(id) {
-    const now = new Date().toISOString()
-    setCompanies(prev => prev.map(c => c.id === id ? { ...c, last_clicked: now } : c))
-    await supabase.from('companies').update({ last_clicked: now }).eq('id', id)
-  }
-  function formatClicked(ts) {
-    if (!ts) return '—'
-    const d = new Date(ts)
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' +
-      d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  function trackCareersClick(id) {
+    update('companies', id, 'last_clicked', new Date().toISOString())
   }
 
   function requestDelete(type, id) { setConfirmTarget({ type, id }) }
@@ -348,13 +256,6 @@ export default function App() {
   const contactPerson = contactPersonId ? people.find(p => p.id === contactPersonId) : null
   const notesCompany = notesCompanyId ? companies.find(c => c.id === notesCompanyId) : null
 
-  if (session === undefined) {
-    return <div className="wrap"><p className="auth-loading">Loading…</p></div>
-  }
-  if (session === null) {
-    return <AuthScreen />
-  }
-
   return (
     <div className="wrap">
       <h2 className="sr-only">Job hunt tracker with an applications ledger, a networking conversation log, and a companies watchlist.</h2>
@@ -467,11 +368,13 @@ export default function App() {
               </tbody>
             </table>
           </div>
-          {filteredApplications.length === 0 && (
-            <div className="empty-state">
-              {applications.length === 0 ? 'No applications logged yet. Add your first one above.' : 'Nothing matches the current filters.'}
-            </div>
-          )}
+          <CollectionState state={data.applications} onRetry={() => reload('applications')}>
+            {filteredApplications.length === 0 && (
+              <div className="empty-state">
+                {applications.length === 0 ? 'No applications logged yet. Add your first one above.' : 'Nothing matches the current filters.'}
+              </div>
+            )}
+          </CollectionState>
         </div>
       )}
 
@@ -534,11 +437,13 @@ export default function App() {
               </tbody>
             </table>
           </div>
-          {filteredPeople.length === 0 && (
-            <div className="empty-state">
-              {people.length === 0 ? 'No conversations logged yet. Add a person above.' : 'Nothing matches the current filters.'}
-            </div>
-          )}
+          <CollectionState state={data.people} onRetry={() => { reload('people'); reload('entries') }}>
+            {filteredPeople.length === 0 && (
+              <div className="empty-state">
+                {people.length === 0 ? 'No conversations logged yet. Add a person above.' : 'Nothing matches the current filters.'}
+              </div>
+            )}
+          </CollectionState>
         </div>
       )}
 
@@ -572,8 +477,8 @@ export default function App() {
                       <td className="link-cell">
                         <div className="link-with-open">
                           <input type="url" placeholder="paste careers page link" defaultValue={c.careers_link || ''} onBlur={e => updateCompany(c.id, 'careers_link', e.target.value)} />
-                          {c.careers_link && (
-                            <a href={c.careers_link} target="_blank" rel="noopener noreferrer" title="Open careers page" onClick={() => trackCareersClick(c.id)}><i className="ti ti-external-link" /></a>
+                          {safeUrl(c.careers_link) && (
+                            <a href={safeUrl(c.careers_link)} target="_blank" rel="noopener noreferrer" title="Open careers page" onClick={() => trackCareersClick(c.id)}><i className="ti ti-external-link" /></a>
                           )}
                         </div>
                       </td>
@@ -591,11 +496,13 @@ export default function App() {
               </tbody>
             </table>
           </div>
-          {companies.length === 0 && <div className="empty-state">No companies logged yet. Add one above.</div>}
+          <CollectionState state={data.companies} onRetry={() => { reload('companies'); reload('companyNotes') }}>
+            {companies.length === 0 && <div className="empty-state">No companies logged yet. Add one above.</div>}
+          </CollectionState>
         </div>
       )}
 
-      <footer className="saved-tag">{saving}</footer>
+      <SaveStatus />
 
       {editingApp && (
         <ApplicationModal app={editingApp} onUpdate={(field, value) => updateApplication(editingApp.id, field, value)} onClose={() => setEditingAppId(null)} />
@@ -629,7 +536,7 @@ function renderAppCell(col, a, onUpdate) {
     case 'company':
       return <EditableCell key="company" value={a.company} placeholder="Company" onSave={v => onUpdate('company', v)} />
     case 'position':
-      return <PositionCell key="position" value={a.position} link={a.link} onSave={v => onUpdate('position', v)} />
+      return <PositionCell key="position" value={a.position} link={safeUrl(a.link)} onSave={v => onUpdate('position', v)} />
     case 'location': case 'source': case 'salary': case 'hiring_manager': case 'connections':
       return <EditableCell key={col.key} value={a[col.key]} placeholder="—" onSave={v => onUpdate(col.key, v)} />
     case 'date_applied': case 'follow_up_date': case 'interview_date':
@@ -657,8 +564,8 @@ function renderAppCell(col, a, onUpdate) {
     case 'letter':
       return (
         <td key="letter" style={{ textAlign: 'center' }}>
-          {a.cover_letter_link
-            ? <a className="letter-link" href={a.cover_letter_link} target="_blank" rel="noopener noreferrer" title="Open cover letter" onClick={e => e.stopPropagation()}><i className="ti ti-file-text" /></a>
+          {safeUrl(a.cover_letter_link)
+            ? <a className="letter-link" href={safeUrl(a.cover_letter_link)} target="_blank" rel="noopener noreferrer" title="Open cover letter" onClick={e => e.stopPropagation()}><i className="ti ti-file-text" /></a>
             : <span className="letter-link-empty">—</span>}
         </td>
       )
@@ -752,7 +659,7 @@ function ApplicationModal({ app, onUpdate, onClose }) {
 }
 
 function ContactModal({ person, entries, onUpdate, onAddEntry, onClose }) {
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(todayLocal)
   const [recommendation, setRecommendation] = useState('')
   const [notes, setNotes] = useState('')
 
@@ -856,6 +763,36 @@ function ConfirmDialog({ message, onConfirm, onCancel }) {
       </div>
     </div>
   )
+}
+
+function CollectionState({ state, onRetry, children }) {
+  if (state.status === 'loading' && state.rows.length === 0) {
+    return <div className="empty-state">Loading…</div>
+  }
+  if (state.status === 'error') {
+    return (
+      <div className="empty-state error-state">
+        Couldn't load this list. {state.error}{' '}
+        <button className="link-btn" onClick={onRetry}>Try again</button>
+      </div>
+    )
+  }
+  return children
+}
+
+function SaveStatus() {
+  const { save, reloadAll } = useData()
+  if (save.error) {
+    return (
+      <footer className="saved-tag save-error" role="alert">
+        Not saved: {save.error}{' '}
+        <button className="link-btn" onClick={reloadAll}>Reload data</button>{' '}
+        <button className="link-btn" onClick={save.dismiss}>Dismiss</button>
+      </footer>
+    )
+  }
+  if (save.pending > 0) return <footer className="saved-tag" aria-live="polite">Saving…</footer>
+  return <footer className="saved-tag" aria-live="polite">{save.savedOnce ? 'All changes saved' : ''}</footer>
 }
 
 function TallyItem({ num, label }) {
