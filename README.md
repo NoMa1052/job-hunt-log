@@ -44,6 +44,13 @@ The `archive` schema (not exposed by the API) keeps deprecated data that was mov
 
 `supabase/legacy/` holds the historical, hand-applied SQL that built the original schema. It's kept for reference only and doesn't match production; don't run it.
 
+## Auth email links
+
+Sign-up confirmation and password-reset emails link back to the site the user is on (`/app` and `/reset-password`). Each Supabase project must allow those URLs under Authentication → URL Configuration:
+
+- Production: Site URL `https://myjobhuntlog.vercel.app`, redirect URL `https://myjobhuntlog.vercel.app/**`
+- sidekick-dev: redirect URLs for Vercel previews (`https://*-sports-survivor.vercel.app/**`) and `http://localhost:5173/**`
+
 ## Deploying
 
 Vercel builds on every push. Merges to `main` deploy to production.

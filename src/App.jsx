@@ -1,19 +1,26 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { supabase } from './lib/supabaseClient'
 import { DataProvider } from './state/DataProvider'
 import AppShell from './components/AppShell'
 import AuthScreen from './features/auth/AuthScreen'
+import ResetPasswordPage from './features/auth/ResetPasswordPage'
 import ApplicationsPage from './features/applications/ApplicationsPage'
 import ConversationsPage from './features/conversations/ConversationsPage'
 import CompaniesPage from './features/companies/CompaniesPage'
 
 export default function App() {
   const [session, setSession] = useState(undefined)
+  // True after arriving from a password-reset email, until a new password is set.
+  const [recovering, setRecovering] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
+    const { data: listener } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true)
+      if (event === 'SIGNED_OUT') setRecovering(false)
+      setSession(s)
+    })
     return () => listener.subscription.unsubscribe()
   }, [])
 
@@ -23,14 +30,10 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      {session === null ? (
-        // Signed out: any URL shows the sign-in screen and stays put, so the
-        // user lands where they were headed after signing in.
-        <AuthScreen />
-      ) : (
-        // Keyed by user: switching accounts remounts and clears everything in memory.
-        <DataProvider key={session.user.id} userId={session.user.id}>
-          <Routes>
+      <Routes>
+        <Route path="/reset-password" element={<ResetPasswordPage session={session} onDone={() => setRecovering(false)} />} />
+        {session ? (
+          <Route element={recovering ? <Navigate to="/reset-password" replace /> : <SignedIn userId={session.user.id} />}>
             {/* "/" is reserved for the Phase 1 landing page; it redirects for now. */}
             <Route path="/" element={<Navigate to="/app/applications" replace />} />
             <Route path="/app" element={<AppShell />}>
@@ -40,9 +43,22 @@ export default function App() {
               <Route path="companies" element={<CompaniesPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/app/applications" replace />} />
-          </Routes>
-        </DataProvider>
-      )}
+          </Route>
+        ) : (
+          // Signed out: any URL shows sign-in and stays put, so the user lands
+          // where they were headed after signing in.
+          <Route path="*" element={<AuthScreen />} />
+        )}
+      </Routes>
     </BrowserRouter>
+  )
+}
+
+// Keyed by user: switching accounts remounts and clears everything in memory.
+function SignedIn({ userId }) {
+  return (
+    <DataProvider key={userId} userId={userId}>
+      <Outlet />
+    </DataProvider>
   )
 }
