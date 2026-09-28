@@ -13,7 +13,7 @@ Production has live user data. Don't point local dev or Vercel Preview deploymen
 
 ## Local development
 
-Requires Node 22 (see `.nvmrc`).
+Requires Node 24 (see `.nvmrc`).
 
 ```
 npm ci
