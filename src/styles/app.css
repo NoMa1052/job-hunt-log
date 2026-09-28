@@ -26,7 +26,15 @@ button, input, select, textarea { font-family: inherit; }
   padding: var(--space-6) var(--space-6) 72px;
 }
 
-.boot { padding: var(--space-12) var(--space-4); text-align: center; color: var(--ink-muted); }
+/* Splash (components/SplashScreen.jsx) ------------------------------------ */
+.splash {
+  position: fixed; inset: 0; z-index: 1000;
+  display: grid; place-items: center;
+  background: var(--canvas);
+  transition: opacity 250ms ease;
+}
+.splash.is-fading { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .splash { transition: none; } }
 
 /* Top bar ------------------------------------------------------------------ */
 .topbar {

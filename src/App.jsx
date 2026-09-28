@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { supabase } from './lib/supabaseClient'
 import { DataProvider } from './state/DataProvider'
@@ -6,6 +6,8 @@ import { UserContext } from './state/UserContext'
 import { ProfileProvider } from './state/ProfileProvider'
 import SettingsPage from './features/settings/SettingsPage'
 import AppShell from './components/AppShell'
+import AppReady from './components/AppReady'
+import SplashScreen from './components/SplashScreen'
 import AuthScreen from './features/auth/AuthScreen'
 import ResetPasswordPage from './features/auth/ResetPasswordPage'
 import ApplicationsPage from './features/applications/ApplicationsPage'
@@ -16,6 +18,8 @@ export default function App() {
   const [session, setSession] = useState(undefined)
   // True after arriving from a password-reset email, until a new password is set.
   const [recovering, setRecovering] = useState(false)
+  // The user whose data has finished its first load.
+  const [loadedFor, setLoadedFor] = useState(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -27,16 +31,26 @@ export default function App() {
     return () => listener.subscription.unsubscribe()
   }, [])
 
-  if (session === undefined) {
-    return <p className="boot">Loading…</p>
-  }
+  const userId = session?.user?.id
+  const markLoaded = useCallback(() => setLoadedFor(userId), [userId])
+  const ready = session !== undefined && (!session || recovering || loadedFor === userId)
 
+  return (
+    <>
+      {session !== undefined && <AppRoutes session={session} recovering={recovering} setRecovering={setRecovering} onLoaded={markLoaded} />}
+      {/* Signed-in only; keyed by user so a new sign-in starts fresh. */}
+      {session && <SplashScreen key={userId} ready={ready} />}
+    </>
+  )
+}
+
+function AppRoutes({ session, recovering, setRecovering, onLoaded }) {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/reset-password" element={<ResetPasswordPage session={session} onDone={() => setRecovering(false)} />} />
+        <Route path="/reset-password" element={<><Loaded onLoaded={onLoaded} /><ResetPasswordPage session={session} onDone={() => setRecovering(false)} /></>} />
         {session ? (
-          <Route element={recovering ? <Navigate to="/reset-password" replace /> : <SignedIn user={session.user} />}>
+          <Route element={recovering ? <Navigate to="/reset-password" replace /> : <SignedIn user={session.user} onLoaded={onLoaded} />}>
             {/* "/" is reserved for the Phase 1 landing page; it redirects for now. */}
             <Route path="/" element={<Navigate to="/app/applications" replace />} />
             <Route path="/app" element={<AppShell />}>
@@ -59,14 +73,21 @@ export default function App() {
 }
 
 // Keyed by user: switching accounts remounts and clears everything in memory.
-function SignedIn({ user }) {
+function SignedIn({ user, onLoaded }) {
   return (
     <UserContext.Provider value={user}>
       <DataProvider key={user.id} userId={user.id}>
         <ProfileProvider>
+          <AppReady onReady={onLoaded} />
           <Outlet />
         </ProfileProvider>
       </DataProvider>
     </UserContext.Provider>
   )
+}
+
+// Pages outside the signed-in app have nothing to load.
+function Loaded({ onLoaded }) {
+  useEffect(() => { onLoaded() }, [onLoaded])
+  return null
 }

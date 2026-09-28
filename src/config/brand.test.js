@@ -16,12 +16,15 @@ describe('brand', () => {
     const root = process.cwd() // tests run from the repo root
     const files = [...sourceFiles(join(root, 'src')), join(root, 'index.html')]
       .filter(f => !f.endsWith(join('config', 'brand.js')))
+      // The logo component is brand art, kept exactly as supplied.
+      .filter(f => !f.endsWith(join('components', 'SidekickLogo.jsx')))
     const offenders = files.filter(f => {
       // File names (imports and mentions of sidekick.css / sidekick-mark.svg)
       // aren't displayed text.
       const text = readFileSync(f, 'utf8')
         .replace(/^import .*$/gm, '')
         .replace(/[\w-]+\.(css|svg|js|jsx)\b/g, '')
+        .replace(/\bSidekickLogo\b/g, '') // the component's name
       return text.includes(brand.name) || text.includes(brand.wordmark)
     })
     expect(offenders).toEqual([])
