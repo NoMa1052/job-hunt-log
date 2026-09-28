@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { supabase } from './lib/supabaseClient'
 import { DataProvider } from './state/DataProvider'
+import { UserContext } from './state/UserContext'
 import AppShell from './components/AppShell'
 import AuthScreen from './features/auth/AuthScreen'
 import ResetPasswordPage from './features/auth/ResetPasswordPage'
@@ -33,7 +34,7 @@ export default function App() {
       <Routes>
         <Route path="/reset-password" element={<ResetPasswordPage session={session} onDone={() => setRecovering(false)} />} />
         {session ? (
-          <Route element={recovering ? <Navigate to="/reset-password" replace /> : <SignedIn userId={session.user.id} />}>
+          <Route element={recovering ? <Navigate to="/reset-password" replace /> : <SignedIn user={session.user} />}>
             {/* "/" is reserved for the Phase 1 landing page; it redirects for now. */}
             <Route path="/" element={<Navigate to="/app/applications" replace />} />
             <Route path="/app" element={<AppShell />}>
@@ -55,10 +56,12 @@ export default function App() {
 }
 
 // Keyed by user: switching accounts remounts and clears everything in memory.
-function SignedIn({ userId }) {
+function SignedIn({ user }) {
   return (
-    <DataProvider key={userId} userId={userId}>
-      <Outlet />
-    </DataProvider>
+    <UserContext.Provider value={user}>
+      <DataProvider key={user.id} userId={user.id}>
+        <Outlet />
+      </DataProvider>
+    </UserContext.Provider>
   )
 }
