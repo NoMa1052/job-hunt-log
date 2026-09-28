@@ -46,3 +46,13 @@ describe('CSV', () => {
     expect(csv).toBe('Company,Count\n"Acme, Inc",2')
   })
 })
+
+describe('initialsFor', async () => {
+  const { initialsFor } = await import('./initials')
+  it('takes two letters from the email name', () => {
+    expect(initialsFor('pat.lee@example.com')).toBe('PL')
+    expect(initialsFor('nmarx0810@gmail.com')).toBe('NM')
+    expect(initialsFor('qa-alice@sidekick-dev.test')).toBe('QA')
+    expect(initialsFor('')).toBe('?')
+  })
+})

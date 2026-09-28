@@ -5,6 +5,7 @@ import { safeUrl } from '../../lib/url'
 import { toCSV, downloadCSV, formatShortDate } from '../../lib/format'
 import { Button, Chip, ConfirmDialog, FilterPopover, FollowUp, Icon, IconButton, Popover } from '../../ui'
 import CollectionState from '../../components/CollectionState'
+import PageHeader from '../../components/PageHeader'
 import ApplicationModal from './ApplicationModal'
 import {
   ALL_COLUMNS, DEFAULT_ORDER, DEFAULT_HIDDEN, EXPORT_HEADERS, PRIORITY_OPTIONS,
@@ -70,11 +71,11 @@ export default function ApplicationsPage() {
 
   return (
     <section aria-label="Applications">
-      <div className="toolbar">
-        <p className="toolbar-intro">Select a row to see and edit every field. Select a column name to filter it.</p>
-        <div className="toolbar-actions">
+      <PageHeader
+        title="Applications"
+        actions={<>
           <Button variant="ghost" icon="download" onClick={() => downloadCSV('applications.csv', toCSV(EXPORT_HEADERS, filteredApplications))}>Export</Button>
-          <Popover align="end" trigger={({ open, toggle }) => <Button variant="secondary" icon="columns" onClick={toggle} aria-expanded={open}>Columns</Button>}>
+          <Popover align="end" trigger={({ open, toggle }) => <Button variant="secondary" icon="columns" onClick={toggle} aria-expanded={open} title="Select a row to see and edit every field. Select a column name to filter it.">Columns</Button>}>
             {columnOrder.map((key, idx) => {
               const col = ALL_COLUMNS.find(c => c.key === key)
               if (!col) return null
@@ -102,8 +103,8 @@ export default function ApplicationsPage() {
             })}
           </Popover>
           <Button variant="primary" icon="plus" onClick={addApplication}>Add application</Button>
-        </div>
-      </div>
+        </>}
+      />
 
       <div className="sk-table-panel">
         <table className="sk-table">

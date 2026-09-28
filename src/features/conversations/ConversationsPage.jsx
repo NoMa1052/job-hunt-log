@@ -3,6 +3,7 @@ import { useData } from '../../state/DataProvider'
 import { toCSV, downloadCSV, formatShortDate } from '../../lib/format'
 import { Button, ConfirmDialog, EditableActionCell, EditableCell, FilterPopover, IconButton } from '../../ui'
 import CollectionState from '../../components/CollectionState'
+import PageHeader from '../../components/PageHeader'
 import ContactModal from './ContactModal'
 
 const EXPORT_HEADERS = [
@@ -59,13 +60,14 @@ export default function ConversationsPage() {
 
   return (
     <section aria-label="Conversations">
-      <div className="toolbar">
-        <p className="toolbar-intro">Select a person's name to see contact info and every conversation you've logged with them.</p>
-        <div className="toolbar-actions">
+      <PageHeader
+        title="Conversations"
+        actions={<>
           <Button variant="ghost" icon="download" onClick={exportConversations}>Export</Button>
           <Button variant="primary" icon="plus" onClick={addPerson}>Add person</Button>
-        </div>
-      </div>
+        </>}
+      />
+
       <div className="sk-table-panel">
         <table className="sk-table">
           <thead>

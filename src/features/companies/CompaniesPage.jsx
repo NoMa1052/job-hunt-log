@@ -4,6 +4,7 @@ import { safeUrl } from '../../lib/url'
 import { toCSV, downloadCSV, formatDate, formatDateTimeShort } from '../../lib/format'
 import { Button, ConfirmDialog, EditableCell, Icon, IconButton, Input } from '../../ui'
 import CollectionState from '../../components/CollectionState'
+import PageHeader from '../../components/PageHeader'
 import CompanyNotesModal from './CompanyNotesModal'
 
 export default function CompaniesPage() {
@@ -37,13 +38,14 @@ export default function CompaniesPage() {
 
   return (
     <section aria-label="Companies">
-      <div className="toolbar">
-        <p className="toolbar-intro">Places you're watching, researching, or were pointed toward.</p>
-        <div className="toolbar-actions">
+      <PageHeader
+        title="Companies"
+        actions={<>
           <Button variant="ghost" icon="download" onClick={exportCompanies}>Export</Button>
           <Button variant="primary" icon="plus" onClick={() => add('companies', { company: '', careers_link: '' })}>Add company</Button>
-        </div>
-      </div>
+        </>}
+      />
+
       <div className="sk-table-panel">
         <table className="sk-table">
           <thead>
