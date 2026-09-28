@@ -1,4 +1,4 @@
-// Sidekick design tokens: plain, platform-neutral values (no CSS, no DOM).
+// Design tokens: plain, platform-neutral values (no CSS, no DOM).
 // The web app mirrors them as CSS variables in src/styles/tokens.css (a test
 // keeps the two in sync); the Expo app can import this file directly.
 

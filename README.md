@@ -1,4 +1,6 @@
-# Job Hunt Log
+# Sidekick
+
+Formerly Job Hunt Log.
 
 Applications ledger, networking conversation log and companies watchlist. React + Vite, data in Supabase (auth + Postgres with row-level security), deployed on Vercel.
 
