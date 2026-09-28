@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../../state/DataProvider'
 import { loadPref, savePref } from '../../lib/storage'
 import { safeUrl } from '../../lib/url'
@@ -6,7 +7,7 @@ import { toCSV, downloadCSV, formatShortDate } from '../../lib/format'
 import { Button, Chip, ConfirmDialog, FilterPopover, FollowUp, Icon, IconButton, Popover } from '../../ui'
 import CollectionState from '../../components/CollectionState'
 import PageHeader from '../../components/PageHeader'
-import ApplicationModal from './ApplicationModal'
+import ApplicationPanel from './ApplicationPanel'
 import {
   ALL_COLUMNS, DEFAULT_ORDER, DEFAULT_HIDDEN, EXPORT_HEADERS, PRIORITY_OPTIONS,
   followUp, optionLabel, passesFilters, statusChip,
@@ -19,7 +20,12 @@ export default function ApplicationsPage() {
   const [columnOrder, setColumnOrder] = useState(() => loadPref(userId, 'col-order', DEFAULT_ORDER))
   const [hiddenCols, setHiddenCols] = useState(() => new Set(loadPref(userId, 'hidden-cols', DEFAULT_HIDDEN)))
   const [colFilters, setColFilters] = useState(() => loadPref(userId, 'col-filters', {}))
-  const [editingAppId, setEditingAppId] = useState(null)
+  // The open application lives in the URL (/app/applications/:appId), so
+  // reload, back and shared links all work.
+  const { appId: editingAppId } = useParams()
+  const navigate = useNavigate()
+  const { search } = useLocation()
+  const setEditingAppId = id => navigate({ pathname: id ? `/app/applications/${id}` : '/app/applications', search })
   const [confirmId, setConfirmId] = useState(null)
   const dragColIdxRef = useRef(null)
 
@@ -68,6 +74,12 @@ export default function ApplicationsPage() {
   const visibleColumns = columnOrder.filter(k => !hiddenCols.has(k)).map(k => ALL_COLUMNS.find(c => c.key === k)).filter(Boolean)
   const filteredApplications = applications.filter(a => passesFilters(a, colFilters))
   const editingApp = editingAppId ? applications.find(a => a.id === editingAppId) : null
+
+  // A link to an application that doesn't exist (deleted, or someone else's)
+  // falls back to the list once the data has loaded.
+  useEffect(() => {
+    if (editingAppId && data.applications.status === 'ready' && !editingApp) navigate({ pathname: '/app/applications', search }, { replace: true })
+  }, [editingAppId, editingApp, data.applications.status, navigate, search])
 
   return (
     <section aria-label="Applications">
@@ -155,12 +167,12 @@ export default function ApplicationsPage() {
       </div>
 
       {editingApp && (
-        <ApplicationModal app={editingApp} onUpdate={(field, value) => updateApplication(editingApp.id, field, value)} onClose={() => setEditingAppId(null)} />
+        <ApplicationPanel key={editingApp.id} app={editingApp} onUpdate={(field, value) => updateApplication(editingApp.id, field, value)} onClose={() => setEditingAppId(null)} />
       )}
       {confirmId && (
         <ConfirmDialog
           message="Are you sure you want to delete this? This can't be undone."
-          onConfirm={() => { remove('applications', confirmId); setConfirmId(null) }}
+          onConfirm={() => { if (confirmId === editingAppId) setEditingAppId(null); remove('applications', confirmId); setConfirmId(null) }}
           onCancel={() => setConfirmId(null)}
         />
       )}

@@ -39,7 +39,7 @@ export default function App() {
             <Route path="/" element={<Navigate to="/app/applications" replace />} />
             <Route path="/app" element={<AppShell />}>
               <Route index element={<Navigate to="applications" replace />} />
-              <Route path="applications" element={<ApplicationsPage />} />
+              <Route path="applications/:appId?" element={<ApplicationsPage />} />
               <Route path="conversations" element={<ConversationsPage />} />
               <Route path="companies" element={<CompaniesPage />} />
             </Route>
