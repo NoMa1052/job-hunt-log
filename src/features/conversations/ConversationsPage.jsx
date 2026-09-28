@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../../state/DataProvider'
 import { useProfile } from '../../state/ProfileProvider'
 import { toCSV, downloadCSV, formatShortDate } from '../../lib/format'
-import { Button, ConfirmDialog, EditableActionCell, EditableCell, FilterPopover, IconButton } from '../../ui'
+import { sameCompany } from '../../lib/match'
+import { Button, ConfirmDialog, FilterPopover, IconButton } from '../../ui'
 import CollectionState from '../../components/CollectionState'
 import PageHeader from '../../components/PageHeader'
-import ContactModal from './ContactModal'
+import PersonPanel from './PersonPanel'
 
 const EXPORT_HEADERS = [
   { key: 'name', label: 'Person' }, { key: 'company', label: 'Company' },
@@ -20,12 +22,17 @@ export default function ConversationsPage() {
   const entries = data.entries.rows
 
   const [peopleFilters, setPeopleFilters] = useState({})
-  const [contactPersonId, setContactPersonId] = useState(null)
   const [confirmId, setConfirmId] = useState(null)
+
+  // The open person lives in the URL, so reload, back and shared links work.
+  const { personId } = useParams()
+  const navigate = useNavigate()
+  const { search } = useLocation()
+  const openPerson = id => navigate({ pathname: id ? `/app/conversations/${id}` : '/app/conversations', search })
 
   async function addPerson() {
     const row = await add('people', { name: '', company: '', email: '', phone: '', other_contact: '' })
-    if (row) setContactPersonId(row.id)
+    if (row) openPerson(row.id)
   }
   const updatePerson = (id, field, value) => update('people', id, field, value)
 
@@ -43,7 +50,14 @@ export default function ConversationsPage() {
   }
 
   const filteredPeople = people.filter(passesPeopleFilters)
-  const contactPerson = contactPersonId ? people.find(p => p.id === contactPersonId) : null
+  const openedPerson = personId ? people.find(p => p.id === personId) : null
+  const personCompany = openedPerson ? data.companies.rows.find(c => sameCompany(c.company, openedPerson.company)) : null
+
+  // A link to a person that doesn't exist (deleted, or someone else's) falls
+  // back to the list once the data has loaded.
+  useEffect(() => {
+    if (personId && data.people.status === 'ready' && !openedPerson) navigate({ pathname: '/app/conversations', search }, { replace: true })
+  }, [personId, openedPerson, data.people.status, navigate, search])
 
   function exportConversations() {
     const rows = []
@@ -85,9 +99,19 @@ export default function ConversationsPage() {
             {filteredPeople.map(p => {
               const last = lastContactFor(p.id)
               return (
-                <tr key={p.id}>
-                  <EditableActionCell value={p.name} placeholder="Name" onSave={v => updatePerson(p.id, 'name', v)} onOpen={() => setContactPersonId(p.id)} />
-                  <EditableCell value={p.company} placeholder="Company" className="sk-cell-meta" onSave={v => updatePerson(p.id, 'company', v)} />
+                <tr
+                  key={p.id}
+                  className="row-link"
+                  tabIndex={0}
+                  aria-selected={personId === p.id}
+                  aria-label={`${p.name || 'Unnamed person'}${p.company ? `, ${p.company}` : ''}: open details`}
+                  onClick={e => { if (!e.target.closest('a, button')) openPerson(p.id) }}
+                  onKeyDown={e => {
+                    if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openPerson(p.id) }
+                  }}
+                >
+                  <td className="sk-cell-company">{p.name || <span className="cell-placeholder">Unnamed</span>}</td>
+                  <td className="sk-cell-meta">{p.company || '—'}</td>
                   <td className="sk-cell-meta">{last ? formatShortDate(last, undefined, profile.date_format) : '—'}</td>
                   <td className="sk-cell-meta center">{entriesFor(p.id).length}</td>
                   <td className="col-actions"><IconButton icon="x" size="sm" label="Delete person" onClick={() => setConfirmId(p.id)} /></td>
@@ -105,13 +129,16 @@ export default function ConversationsPage() {
         </CollectionState>
       </div>
 
-      {contactPerson && (
-        <ContactModal
-          person={contactPerson}
-          entries={entriesFor(contactPerson.id)}
-          onUpdate={(field, value) => updatePerson(contactPerson.id, field, value)}
-          onAddEntry={({ date, recommendation, notes }) => add('entries', { person_id: contactPerson.id, date, recommendation, notes })}
-          onClose={() => setContactPersonId(null)}
+      {openedPerson && (
+        <PersonPanel
+          key={openedPerson.id}
+          person={openedPerson}
+          entries={entriesFor(openedPerson.id)}
+          company={personCompany}
+          onUpdate={(field, value) => updatePerson(openedPerson.id, field, value)}
+          onAddEntry={({ date, recommendation, notes }) => add('entries', { person_id: openedPerson.id, date, recommendation, notes })}
+          onOpenCompany={() => navigate(`/app/companies/${personCompany.id}`)}
+          onClose={() => openPerson(null)}
         />
       )}
       {confirmId && (

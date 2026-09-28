@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../../state/DataProvider'
 import { safeUrl } from '../../lib/url'
+import { sameCompany } from '../../lib/match'
 import { toCSV, downloadCSV, formatDate, formatDateTimeShort } from '../../lib/format'
-import { Button, ConfirmDialog, EditableCell, Icon, IconButton, Input } from '../../ui'
+import { Button, ConfirmDialog, Icon, IconButton } from '../../ui'
 import CollectionState from '../../components/CollectionState'
 import PageHeader from '../../components/PageHeader'
-import CompanyNotesModal from './CompanyNotesModal'
+import CompanyPanel from './CompanyPanel'
 
 export default function CompaniesPage() {
   const { data, add, update, remove, reload } = useData()
@@ -13,16 +15,23 @@ export default function CompaniesPage() {
   const companyNotes = data.companyNotes.rows
   const applications = data.applications.rows
 
-  const [notesCompanyId, setNotesCompanyId] = useState(null)
   const [confirmId, setConfirmId] = useState(null)
+
+  // The open company lives in the URL, so reload, back and shared links work.
+  const { companyId } = useParams()
+  const navigate = useNavigate()
+  const { search } = useLocation()
+  const openCompany = id => navigate({ pathname: id ? `/app/companies/${id}` : '/app/companies', search })
+
+  async function addCompany() {
+    const row = await add('companies', { company: '', careers_link: '' })
+    if (row) openCompany(row.id)
+  }
 
   const updateCompany = (id, field, value) => update('companies', id, field, value)
   const notesFor = companyId => companyNotes.filter(n => n.company_id === companyId)
-  function appliedCountFor(companyName) {
-    const target = (companyName || '').trim().toLowerCase()
-    if (!target) return 0
-    return applications.filter(a => (a.company || '').trim().toLowerCase() === target).length
-  }
+  const applicationsAt = companyName => applications.filter(a => sameCompany(a.company, companyName))
+  const appliedCountFor = companyName => applicationsAt(companyName).length
 
   function exportCompanies() {
     const headers = [
@@ -34,7 +43,16 @@ export default function CompaniesPage() {
     downloadCSV('companies.csv', toCSV(headers, companies))
   }
 
-  const notesCompany = notesCompanyId ? companies.find(c => c.id === notesCompanyId) : null
+  const openedCompany = companyId ? companies.find(c => c.id === companyId) : null
+  const peopleAt = companyName => data.people.rows
+    .filter(p => sameCompany(p.company, companyName))
+    .map(p => ({ ...p, talks: data.entries.rows.filter(e => e.person_id === p.id).length }))
+
+  // A link to a company that doesn't exist (deleted, or someone else's) falls
+  // back to the list once the data has loaded.
+  useEffect(() => {
+    if (companyId && data.companies.status === 'ready' && !openedCompany) navigate({ pathname: '/app/companies', search }, { replace: true })
+  }, [companyId, openedCompany, data.companies.status, navigate, search])
 
   return (
     <section aria-label="Companies">
@@ -42,7 +60,7 @@ export default function CompaniesPage() {
         title="Companies"
         actions={<>
           <Button variant="ghost" icon="download" onClick={exportCompanies}>Export</Button>
-          <Button variant="primary" icon="plus" onClick={() => add('companies', { company: '', careers_link: '' })}>Add company</Button>
+          <Button variant="primary" icon="plus" onClick={addCompany}>Add company</Button>
         </>}
       />
 
@@ -63,23 +81,29 @@ export default function CompaniesPage() {
               const noteCount = notesFor(c.id).length
               const href = safeUrl(c.careers_link)
               return (
-                <tr key={c.id}>
-                  <EditableCell value={c.company} placeholder="Company" className="sk-cell-company" onSave={v => updateCompany(c.id, 'company', v)} />
+                <tr
+                  key={c.id}
+                  className="row-link"
+                  tabIndex={0}
+                  aria-selected={companyId === c.id}
+                  aria-label={`${c.company || 'Unnamed company'}: open details`}
+                  onClick={e => { if (!e.target.closest('a, button')) openCompany(c.id) }}
+                  onKeyDown={e => {
+                    if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openCompany(c.id) }
+                  }}
+                >
+                  <td className="sk-cell-company">{c.company || <span className="cell-placeholder">Unnamed</span>}</td>
                   <td>
-                    <div className="link-field">
-                      <Input type="url" className="link-input" placeholder="paste careers page link" aria-label="Careers page link" defaultValue={c.careers_link || ''} onBlur={e => updateCompany(c.id, 'careers_link', e.target.value)} />
-                      {href && (
-                        <a className="icon-link" href={href} target="_blank" rel="noopener noreferrer" title="Open careers page" aria-label="Open careers page" onClick={() => updateCompany(c.id, 'last_clicked', new Date().toISOString())}><Icon name="external-link" /></a>
-                      )}
-                    </div>
+                    {href ? (
+                      <a className="sk-cell-link cell-link" href={href} target="_blank" rel="noopener noreferrer" onClick={() => updateCompany(c.id, 'last_clicked', new Date().toISOString())}>
+                        {new URL(href).hostname.replace(/^www\./, '')}
+                        <Icon name="external-link" size={14} />
+                      </a>
+                    ) : <span className="sk-cell-meta">—</span>}
                   </td>
                   <td className="sk-cell-meta center">{appliedCountFor(c.company)}</td>
                   <td className="sk-cell-meta">{formatDateTimeShort(c.last_clicked)}</td>
-                  <td>
-                    <Button variant="secondary" size="sm" icon="notes" onClick={() => setNotesCompanyId(c.id)}>
-                      {noteCount > 0 ? `${noteCount} note${noteCount > 1 ? 's' : ''}` : 'Add note'}
-                    </Button>
-                  </td>
+                  <td className="sk-cell-meta">{noteCount > 0 ? `${noteCount} note${noteCount > 1 ? 's' : ''}` : '—'}</td>
                   <td className="col-actions"><IconButton icon="x" size="sm" label="Delete company" onClick={() => setConfirmId(c.id)} /></td>
                 </tr>
               )
@@ -91,12 +115,18 @@ export default function CompaniesPage() {
         </CollectionState>
       </div>
 
-      {notesCompany && (
-        <CompanyNotesModal
-          company={notesCompany}
-          notes={notesFor(notesCompany.id)}
-          onAddNote={note => add('companyNotes', { company_id: notesCompany.id, note })}
-          onClose={() => setNotesCompanyId(null)}
+      {openedCompany && (
+        <CompanyPanel
+          key={openedCompany.id}
+          company={openedCompany}
+          notes={notesFor(openedCompany.id)}
+          applications={applicationsAt(openedCompany.company)}
+          people={peopleAt(openedCompany.company)}
+          onUpdate={(field, value) => updateCompany(openedCompany.id, field, value)}
+          onAddNote={note => add('companyNotes', { company_id: openedCompany.id, note })}
+          onOpenApplication={id => navigate(`/app/applications/${id}`)}
+          onOpenPerson={id => navigate(`/app/conversations/${id}`)}
+          onClose={() => openCompany(null)}
         />
       )}
       {confirmId && (
