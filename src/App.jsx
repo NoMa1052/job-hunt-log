@@ -18,7 +18,7 @@ export default function App() {
   }, [])
 
   if (session === undefined) {
-    return <div className="wrap"><p className="auth-loading">Loading…</p></div>
+    return <p className="boot">Loading…</p>
   }
 
   return (

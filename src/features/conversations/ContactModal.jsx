@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { todayLocal } from '../../lib/format'
-import { Modal } from '../../ui'
+import { Button, Field, Input, Modal, TextArea } from '../../ui'
 
 export default function ContactModal({ person, entries, onUpdate, onAddEntry, onClose }) {
   const [date, setDate] = useState(todayLocal)
@@ -14,39 +14,45 @@ export default function ContactModal({ person, entries, onUpdate, onAddEntry, on
     setNotes('')
   }
 
+  const contact = (field, label, placeholder) => (
+    <Field label={label}>
+      <Input type="text" placeholder={placeholder} defaultValue={person[field] || ''} onBlur={e => onUpdate(field, e.target.value)} />
+    </Field>
+  )
+
   return (
     <Modal
       onClose={onClose}
-      title={<input className="modal-title-input" type="text" defaultValue={person.name} placeholder="Name" aria-label="Name" onBlur={e => onUpdate('name', e.target.value)} />}
-      subtitle={<input className="modal-subtitle-input" type="text" defaultValue={person.company} placeholder="Company" aria-label="Company" onBlur={e => onUpdate('company', e.target.value)} />}
+      title={<input className="title-input" type="text" defaultValue={person.name} placeholder="Name" aria-label="Name" onBlur={e => onUpdate('name', e.target.value)} />}
+      subtitle={<input className="subtitle-input" type="text" defaultValue={person.company} placeholder="Company" aria-label="Company" onBlur={e => onUpdate('company', e.target.value)} />}
     >
-        <div className="detail-grid modal-grid" style={{ paddingBottom: 10 }}>
-          <label>Email<input type="text" placeholder="name@company.com" defaultValue={person.email || ''} onBlur={e => onUpdate('email', e.target.value)} /></label>
-          <label>Phone<input type="text" placeholder="phone number" defaultValue={person.phone || ''} onBlur={e => onUpdate('phone', e.target.value)} /></label>
-          <label>Other contact<input type="text" placeholder="LinkedIn, etc." defaultValue={person.other_contact || ''} onBlur={e => onUpdate('other_contact', e.target.value)} /></label>
+      <div className="form-grid">
+        {contact('email', 'Email', 'name@company.com')}
+        {contact('phone', 'Phone', 'phone number')}
+        {contact('other_contact', 'Other contact', 'LinkedIn, etc.')}
+      </div>
+
+      <div className="thread">
+        <div className="thread-compose">
+          <div className="thread-compose-row">
+            <Input type="date" value={date} onChange={e => setDate(e.target.value)} aria-label="Conversation date" />
+            <Button variant="primary" icon="plus" onClick={submitEntry}>Log conversation</Button>
+          </div>
+          <TextArea placeholder="What they recommended…" aria-label="What they recommended" value={recommendation} onChange={e => setRecommendation(e.target.value)} />
+          <TextArea placeholder="Anything else worth remembering…" aria-label="Notes" value={notes} onChange={e => setNotes(e.target.value)} />
         </div>
 
-        <div className="thread-section">
-          <div className="thread-add">
-            <div className="thread-add-row">
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} />
-              <button className="add-btn" onClick={submitEntry}>+ Log conversation</button>
+        <div className="thread-list">
+          {entries.length === 0 && <p className="thread-empty">No conversations logged yet.</p>}
+          {entries.map(e => (
+            <div key={e.id} className="thread-entry">
+              <div className="thread-date">{e.date || 'No date'}</div>
+              {e.recommendation && <div className="thread-text"><strong>Recommended:</strong> {e.recommendation}</div>}
+              {e.notes && <div className="thread-text">{e.notes}</div>}
             </div>
-            <textarea className="conv-note" placeholder="What they recommended…" value={recommendation} onChange={e => setRecommendation(e.target.value)} />
-            <textarea className="conv-note" placeholder="Anything else worth remembering…" value={notes} onChange={e => setNotes(e.target.value)} />
-          </div>
-
-          <div className="thread-list">
-            {entries.length === 0 && <p className="thread-empty">No conversations logged yet.</p>}
-            {entries.map(e => (
-              <div key={e.id} className="thread-entry">
-                <div className="thread-entry-date">{e.date || 'No date'}</div>
-                {e.recommendation && <div className="thread-entry-text"><strong>Recommended:</strong> {e.recommendation}</div>}
-                {e.notes && <div className="thread-entry-text">{e.notes}</div>}
-              </div>
-            ))}
-          </div>
+          ))}
         </div>
+      </div>
     </Modal>
   )
 }

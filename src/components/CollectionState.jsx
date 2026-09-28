@@ -1,3 +1,5 @@
+import { Button } from '../ui'
+
 // Wraps a list's empty state: shows loading or a retryable error instead.
 export default function CollectionState({ state, onRetry, children }) {
   if (state.status === 'loading' && state.rows.length === 0) {
@@ -7,7 +9,7 @@ export default function CollectionState({ state, onRetry, children }) {
     return (
       <div className="empty-state error-state">
         Couldn't load this list. {state.error}{' '}
-        <button className="link-btn" onClick={onRetry}>Try again</button>
+        <Button variant="link" onClick={onRetry}>Try again</Button>
       </div>
     )
   }

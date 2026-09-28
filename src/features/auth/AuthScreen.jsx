@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import brand from '../../config/brand'
+import { Button, Card, Field, Input, Logo } from '../../ui'
 
 export default function AuthScreen() {
   const [mode, setMode] = useState('signin')
@@ -25,23 +26,28 @@ export default function AuthScreen() {
   }
 
   return (
-    <div className="auth-wrap">
-      <div className="auth-card">
-        <h1 className="auth-title">{brand.name}</h1>
-        <p className="auth-sub">{mode === 'signin' ? 'Sign in to your tracker' : 'Create an account'}</p>
+    <main className="auth-page">
+      <Card className="auth-card">
+        <div className="auth-head">
+          <Logo variant="light" size={44} wordmark={brand.wordmark} />
+          <h1 className="sr-only">{brand.name}</h1>
+          <p className="auth-sub">{mode === 'signin' ? 'Sign in to your tracker' : 'Create an account'}</p>
+        </div>
         <form onSubmit={submit} className="auth-form">
-          <label>Email<input type="email" required value={email} onChange={e => setEmail(e.target.value)} /></label>
-          <label>Password<input type="password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)} /></label>
-          {error && <p className="auth-error">{error}</p>}
-          {info && <p className="auth-info">{info}</p>}
-          <button className="add-btn" type="submit" disabled={loading}>
+          <Field label="Email"><Input type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} /></Field>
+          <Field label="Password"><Input type="password" autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} required minLength={6} value={password} onChange={e => setPassword(e.target.value)} /></Field>
+          {error && <p className="auth-msg error" role="alert">{error}</p>}
+          {info && <p className="auth-msg info">{info}</p>}
+          <Button variant="primary" type="submit" disabled={loading}>
             {loading ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
-          </button>
+          </Button>
         </form>
-        <button className="auth-toggle" onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); setInfo('') }}>
-          {mode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-        </button>
-      </div>
-    </div>
+        <div className="auth-switch">
+          <Button variant="link" onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); setInfo('') }}>
+            {mode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+          </Button>
+        </div>
+      </Card>
+    </main>
   )
 }

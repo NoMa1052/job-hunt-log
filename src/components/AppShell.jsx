@@ -2,8 +2,9 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useData } from '../state/DataProvider'
 import { statusCounts } from '../features/applications/options'
-import SaveStatus from './SaveStatus'
 import brand from '../config/brand'
+import { Button, Logo } from '../ui'
+import SaveStatus from './SaveStatus'
 
 const TABS = [
   { to: 'applications', label: 'Applications' },
@@ -18,23 +19,25 @@ export default function AppShell() {
   const active = applications.length - counts.rejected - counts.withdrawn
 
   return (
-    <div className="wrap">
-      <h2 className="sr-only">{brand.description}</h2>
-
-      <header>
-        <h1>{brand.name}<span>{brand.tagline}</span></h1>
-        <div className="header-right">
-          <div className="tally">
-            <TallyItem num={applications.length} label="Applied" />
-            <TallyItem num={counts.screen + counts.interview} label="In process" />
-            <TallyItem num={counts.offer} label="Offers" />
-            <TallyItem num={active} label="Active" />
+    <div className="page">
+      <header className="app-header">
+        <h1 className="app-brand">
+          <Logo variant="light" size={36} wordmark={brand.wordmark} />
+          <span className="sr-only">{brand.name}: {brand.description}</span>
+          <span className="app-tagline" aria-hidden="true">{brand.tagline}</span>
+        </h1>
+        <div className="app-header-right">
+          <div className="stats" aria-label="Application totals">
+            <Stat num={applications.length} label="Applied" />
+            <Stat num={counts.screen + counts.interview} label="In process" />
+            <Stat num={counts.offer} label="Offers" />
+            <Stat num={active} label="Active" />
           </div>
-          <button className="add-btn secondary sign-out-btn" onClick={() => supabase.auth.signOut()}>Sign out</button>
+          <Button variant="ghost" onClick={() => supabase.auth.signOut()}>Sign out</Button>
         </div>
       </header>
 
-      <nav className="tabs">
+      <nav className="tabs" aria-label="Sections">
         {TABS.map(t => (
           <NavLink key={t.to} to={t.to} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t.label}</NavLink>
         ))}
@@ -47,11 +50,11 @@ export default function AppShell() {
   )
 }
 
-function TallyItem({ num, label }) {
+function Stat({ num, label }) {
   return (
-    <div className="tally-item">
-      <span className="tally-num">{num}</span>
-      <span className="tally-label">{label}</span>
+    <div className="stat">
+      <span className="stat-num">{num}</span>
+      <span className="stat-label">{label}</span>
     </div>
   )
 }

@@ -1,28 +1,38 @@
-import { Modal, Select } from '../../ui'
+import { Field, Input, Modal, Select, TextArea } from '../../ui'
 import { STATUS_OPTIONS, PRIORITY_OPTIONS } from './options'
 
 export default function ApplicationModal({ app, onUpdate, onClose }) {
+  // Text fields save on blur; dates and selects save on change.
+  const text = (field, props = {}) => (
+    <Input type="text" defaultValue={app[field] || ''} onBlur={e => onUpdate(field, e.target.value)} {...props} />
+  )
+  const date = field => (
+    <Input type="date" value={app[field] || ''} onChange={e => onUpdate(field, e.target.value)} />
+  )
+
   return (
     <Modal
       onClose={onClose}
-      title={<input className="modal-title-input" type="text" defaultValue={app.company} placeholder="Company" aria-label="Company" onBlur={e => onUpdate('company', e.target.value)} />}
-      subtitle={<input className="modal-subtitle-input" type="text" defaultValue={app.position} placeholder="Position" aria-label="Position" onBlur={e => onUpdate('position', e.target.value)} />}
+      title={<input className="title-input" type="text" defaultValue={app.company} placeholder="Company" aria-label="Company" onBlur={e => onUpdate('company', e.target.value)} />}
+      subtitle={<input className="subtitle-input" type="text" defaultValue={app.position} placeholder="Position" aria-label="Position" onBlur={e => onUpdate('position', e.target.value)} />}
     >
-      <div className="detail-grid modal-grid">
-        <label>Location<input type="text" defaultValue={app.location || ''} onBlur={e => onUpdate('location', e.target.value)} /></label>
-        <label>Status<Select options={STATUS_OPTIONS} value={app.status || 'applied'} onChange={v => onUpdate('status', v)} /></label>
-        <label>Priority<Select options={PRIORITY_OPTIONS} value={app.priority || 'medium'} onChange={v => onUpdate('priority', v)} /></label>
-        <label>Date applied<input type="date" value={app.date_applied || ''} onChange={e => onUpdate('date_applied', e.target.value)} /></label>
-        <label>Application link<input type="url" placeholder="paste the link to where you applied" defaultValue={app.link || ''} onBlur={e => onUpdate('link', e.target.value)} /></label>
-        <label>Cover letter link<input type="url" placeholder="paste Google Doc link" defaultValue={app.cover_letter_link || ''} onBlur={e => onUpdate('cover_letter_link', e.target.value)} /></label>
-        <label>Source<input type="text" placeholder="referral, LinkedIn, cold, etc." defaultValue={app.source || ''} onBlur={e => onUpdate('source', e.target.value)} /></label>
-        <label>Salary / comp<input type="text" placeholder="e.g. $70k–85k or n/a" defaultValue={app.salary || ''} onBlur={e => onUpdate('salary', e.target.value)} /></label>
-        <label>Hiring manager<input type="text" defaultValue={app.hiring_manager || ''} onBlur={e => onUpdate('hiring_manager', e.target.value)} /></label>
-        <label>Other connections<input type="text" defaultValue={app.connections || ''} onBlur={e => onUpdate('connections', e.target.value)} /></label>
-        <label>Next action<input type="text" placeholder="e.g. follow up with recruiter" defaultValue={app.next_action || ''} onBlur={e => onUpdate('next_action', e.target.value)} /></label>
-        <label>Follow-up date<input type="date" value={app.follow_up_date || ''} onChange={e => onUpdate('follow_up_date', e.target.value)} /></label>
-        <label>Interview date<input type="date" value={app.interview_date || ''} onChange={e => onUpdate('interview_date', e.target.value)} /></label>
-        <label className="notes-field">Notes<textarea className="conv-note" placeholder="interview prep, red flags, anything else" defaultValue={app.notes || ''} onBlur={e => onUpdate('notes', e.target.value)} /></label>
+      <div className="form-grid">
+        <Field label="Location">{text('location')}</Field>
+        <Field label="Status"><Select options={STATUS_OPTIONS} value={app.status || 'applied'} onChange={v => onUpdate('status', v)} /></Field>
+        <Field label="Priority"><Select options={PRIORITY_OPTIONS} value={app.priority || 'medium'} onChange={v => onUpdate('priority', v)} /></Field>
+        <Field label="Date applied">{date('date_applied')}</Field>
+        <Field label="Application link">{text('link', { type: 'url', placeholder: 'paste the link to where you applied' })}</Field>
+        <Field label="Cover letter link">{text('cover_letter_link', { type: 'url', placeholder: 'paste Google Doc link' })}</Field>
+        <Field label="Source">{text('source', { placeholder: 'referral, LinkedIn, cold, etc.' })}</Field>
+        <Field label="Salary / comp">{text('salary', { placeholder: 'e.g. $70k–85k or n/a' })}</Field>
+        <Field label="Hiring manager">{text('hiring_manager')}</Field>
+        <Field label="Other connections">{text('connections')}</Field>
+        <Field label="Next action">{text('next_action', { placeholder: 'e.g. follow up with recruiter' })}</Field>
+        <Field label="Follow-up date">{date('follow_up_date')}</Field>
+        <Field label="Interview date">{date('interview_date')}</Field>
+        <Field label="Notes" className="span-all">
+          <TextArea placeholder="interview prep, red flags, anything else" defaultValue={app.notes || ''} onBlur={e => onUpdate('notes', e.target.value)} />
+        </Field>
       </div>
     </Modal>
   )

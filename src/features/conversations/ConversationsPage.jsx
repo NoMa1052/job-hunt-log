@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useData } from '../../state/DataProvider'
 import { toCSV, downloadCSV } from '../../lib/format'
-import { ConfirmDialog, EditableActionCell, EditableCell, FilterPopover } from '../../ui'
+import { Button, Card, ConfirmDialog, EditableActionCell, EditableCell, FilterPopover, IconButton } from '../../ui'
 import CollectionState from '../../components/CollectionState'
 import ContactModal from './ContactModal'
 
@@ -58,35 +58,35 @@ export default function ConversationsPage() {
   }
 
   return (
-    <div className="panel">
+    <Card as="section" aria-label="Conversations">
       <div className="panel-head">
-        <p>Click a person's name to see contact info and every conversation you've logged with them.</p>
-        <div className="panel-head-btns">
-          <button className="add-btn secondary" onClick={exportConversations}>Export CSV</button>
-          <button className="add-btn" onClick={addPerson}>+ Add person</button>
+        <p className="panel-intro">Click a person's name to see contact info and every conversation you've logged with them.</p>
+        <div className="panel-actions">
+          <Button icon="download" onClick={exportConversations}>Export CSV</Button>
+          <Button variant="primary" icon="plus" onClick={addPerson}>Add person</Button>
         </div>
       </div>
       <div className="table-wrap">
-        <table>
+        <table className="data">
           <thead>
             <tr>
-              <th style={{ width: 170 }}>{filterHeader('name', 'Person')}</th>
-              <th style={{ width: 170 }}>{filterHeader('company', 'Company')}</th>
-              <th style={{ width: 110 }}>Last contact</th>
-              <th style={{ width: 90 }}>Talks</th>
-              <th></th>
+              <th>{filterHeader('name', 'Person')}</th>
+              <th>{filterHeader('company', 'Company')}</th>
+              <th>Last contact</th>
+              <th className="center">Talks</th>
+              <th className="col-actions"><span className="sr-only">Delete</span></th>
             </tr>
           </thead>
           <tbody>
             {filteredPeople.map(p => {
               const last = lastContactFor(p.id)
               return (
-                <tr key={p.id} className="app-row">
+                <tr key={p.id}>
                   <EditableActionCell value={p.name} placeholder="Name" onSave={v => updatePerson(p.id, 'name', v)} onOpen={() => setContactPersonId(p.id)} />
                   <EditableCell value={p.company} placeholder="Company" onSave={v => updatePerson(p.id, 'company', v)} />
-                  <td className="num-col">{last ? last : '—'}</td>
-                  <td className="num-col" style={{ textAlign: 'center' }}>{entriesFor(p.id).length}</td>
-                  <td><button className="del-btn" title="Delete person" onClick={() => setConfirmId(p.id)}>×</button></td>
+                  <td className="num">{last ? last : <span className="muted">—</span>}</td>
+                  <td className="num center">{entriesFor(p.id).length}</td>
+                  <td className="col-actions"><IconButton icon="x" size="sm" label="Delete person" onClick={() => setConfirmId(p.id)} /></td>
                 </tr>
               )
             })}
@@ -117,6 +117,6 @@ export default function ConversationsPage() {
           onCancel={() => setConfirmId(null)}
         />
       )}
-    </div>
+    </Card>
   )
 }

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useData } from '../../state/DataProvider'
 import { safeUrl } from '../../lib/url'
 import { toCSV, downloadCSV, formatDate, formatDateTimeShort } from '../../lib/format'
-import { ConfirmDialog, EditableCell, Icon } from '../../ui'
+import { Button, Card, ConfirmDialog, EditableCell, Icon, IconButton, Input } from '../../ui'
 import CollectionState from '../../components/CollectionState'
 import CompanyNotesModal from './CompanyNotesModal'
 
@@ -36,24 +36,24 @@ export default function CompaniesPage() {
   const notesCompany = notesCompanyId ? companies.find(c => c.id === notesCompanyId) : null
 
   return (
-    <div className="panel">
+    <Card as="section" aria-label="Companies">
       <div className="panel-head">
-        <p>Places you're watching, researching, or were pointed toward.</p>
-        <div className="panel-head-btns">
-          <button className="add-btn secondary" onClick={exportCompanies}>Export CSV</button>
-          <button className="add-btn" onClick={() => add('companies', { company: '', careers_link: '' })}>+ Add company</button>
+        <p className="panel-intro">Places you're watching, researching, or were pointed toward.</p>
+        <div className="panel-actions">
+          <Button icon="download" onClick={exportCompanies}>Export CSV</Button>
+          <Button variant="primary" icon="plus" onClick={() => add('companies', { company: '', careers_link: '' })}>Add company</Button>
         </div>
       </div>
       <div className="table-wrap">
-        <table>
+        <table className="data">
           <thead>
             <tr>
-              <th style={{ width: 200 }}>Company</th>
-              <th style={{ width: 220 }}>Careers link</th>
-              <th style={{ width: 60 }}>Applied</th>
-              <th style={{ width: 120 }}>Last clicked</th>
+              <th>Company</th>
+              <th>Careers link</th>
+              <th className="center">Applied</th>
+              <th>Last clicked</th>
               <th>Notes</th>
-              <th></th>
+              <th className="col-actions"><span className="sr-only">Delete</span></th>
             </tr>
           </thead>
           <tbody>
@@ -63,22 +63,22 @@ export default function CompaniesPage() {
               return (
                 <tr key={c.id}>
                   <EditableCell value={c.company} placeholder="Company" onSave={v => updateCompany(c.id, 'company', v)} />
-                  <td className="link-cell">
-                    <div className="link-with-open">
-                      <input type="url" placeholder="paste careers page link" defaultValue={c.careers_link || ''} onBlur={e => updateCompany(c.id, 'careers_link', e.target.value)} />
+                  <td>
+                    <div className="link-field">
+                      <Input type="url" className="ui-input--sm" placeholder="paste careers page link" aria-label="Careers page link" defaultValue={c.careers_link || ''} onBlur={e => updateCompany(c.id, 'careers_link', e.target.value)} />
                       {href && (
-                        <a href={href} target="_blank" rel="noopener noreferrer" title="Open careers page" onClick={() => updateCompany(c.id, 'last_clicked', new Date().toISOString())}><Icon name="external-link" /></a>
+                        <a className="icon-link" href={href} target="_blank" rel="noopener noreferrer" title="Open careers page" aria-label="Open careers page" onClick={() => updateCompany(c.id, 'last_clicked', new Date().toISOString())}><Icon name="external-link" /></a>
                       )}
                     </div>
                   </td>
-                  <td className="num-col" style={{ textAlign: 'center' }}>{appliedCountFor(c.company)}</td>
-                  <td className="num-col">{formatDateTimeShort(c.last_clicked)}</td>
+                  <td className="num center">{appliedCountFor(c.company)}</td>
+                  <td className="num">{formatDateTimeShort(c.last_clicked)}</td>
                   <td>
-                    <button className="notes-btn" onClick={() => setNotesCompanyId(c.id)}>
-                      <Icon name="notes" /> {noteCount > 0 ? `${noteCount} note${noteCount > 1 ? 's' : ''}` : 'Add note'}
-                    </button>
+                    <Button size="sm" icon="notes" onClick={() => setNotesCompanyId(c.id)}>
+                      {noteCount > 0 ? `${noteCount} note${noteCount > 1 ? 's' : ''}` : 'Add note'}
+                    </Button>
                   </td>
-                  <td><button className="del-btn" title="Delete row" onClick={() => setConfirmId(c.id)}>×</button></td>
+                  <td className="col-actions"><IconButton icon="x" size="sm" label="Delete company" onClick={() => setConfirmId(c.id)} /></td>
                 </tr>
               )
             })}
@@ -104,6 +104,6 @@ export default function CompaniesPage() {
           onCancel={() => setConfirmId(null)}
         />
       )}
-    </div>
+    </Card>
   )
 }
