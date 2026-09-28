@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import LinkField from '../../components/LinkField'
+import PanelDelete from '../../components/PanelDelete'
 import { formatDateTimeShort, formatShortDate } from '../../lib/format'
 import { useProfile } from '../../state/ProfileProvider'
-import { Button, Chip, Field, SidePanel, TextArea } from '../../ui'
+import { Button, Chip, Field, IconButton, SidePanel, TextArea } from '../../ui'
 import { statusChip } from '../applications/options'
 
 const CAREERS = { key: 'careers_link', label: 'Careers page', add: 'Add careers page link', placeholder: 'paste the careers page link', open: 'Open careers page' }
 
-export default function CompanyPanel({ company, notes, applications, people, onUpdate, onAddNote, onOpenApplication, onOpenPerson, onClose }) {
+export default function CompanyPanel({ company, notes, applications, people, onUpdate, onAddNote, onDeleteNote, onOpenApplication, onOpenPerson, onDelete, onClose }) {
   const { profile } = useProfile()
   const name = company.company || 'this company'
   const timeline = notes.slice().sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
@@ -76,12 +77,17 @@ export default function CompanyPanel({ company, notes, applications, people, onU
         <ol className="timeline">
           {timeline.map(n => (
             <li key={n.id} className="timeline-item">
-              <div className="timeline-date">{formatShortDate(n.created_at, undefined, profile.date_format)}</div>
+              <div className="timeline-head">
+                <div className="timeline-date">{formatShortDate(n.created_at, undefined, profile.date_format)}</div>
+                <IconButton icon="trash" size="sm" label={`Delete note from ${formatShortDate(n.created_at, undefined, profile.date_format)}`} onClick={() => onDeleteNote(n.id)} />
+              </div>
               <p className="timeline-text">{n.note}</p>
             </li>
           ))}
         </ol>
       </section>
+
+      <PanelDelete label="Delete company" onDelete={onDelete} />
     </SidePanel>
   )
 }

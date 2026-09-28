@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import LinkField from '../../components/LinkField'
+import PanelDelete from '../../components/PanelDelete'
 import { Button, Chip, Field, FollowUp, Input, Popover, SidePanel, TextArea } from '../../ui'
 import { PRIORITY_OPTIONS, STATUS_OPTIONS, followUp, optionLabel, statusChip } from './options'
 
@@ -18,7 +19,7 @@ const LINKS = [
   { key: 'cover_letter_link', label: 'Cover letter', add: 'Add cover letter link', placeholder: 'paste Google Doc link' },
 ]
 
-export default function ApplicationPanel({ app, onUpdate, onClose }) {
+export default function ApplicationPanel({ app, onUpdate, onDelete, onClose }) {
   const [revealed, setRevealed] = useState(() => new Set())
   const reveal = key => setRevealed(prev => new Set(prev).add(key))
   const hideIfEmpty = (key, value) => {
@@ -65,7 +66,7 @@ export default function ApplicationPanel({ app, onUpdate, onClose }) {
         </label>
         <label className="key-item key-item--wide">
           <span className="key-label">Next action</span>
-          <Input type="text" className="key-input" placeholder="e.g. follow up with recruiter" defaultValue={app.next_action || ''} onBlur={e => onUpdate('next_action', e.target.value)} />
+          <Input type="text" className="key-input" placeholder="e.g. Email recruiter" defaultValue={app.next_action || ''} onBlur={e => onUpdate('next_action', e.target.value)} />
         </label>
         <label className="key-item">
           <span className="key-label">Follow-up</span>
@@ -112,6 +113,8 @@ export default function ApplicationPanel({ app, onUpdate, onClose }) {
           <TextArea placeholder="Interview prep, red flags, anything else" defaultValue={app.notes || ''} onBlur={e => onUpdate('notes', e.target.value)} />
         </Field>
       </section>
+
+      <PanelDelete label="Delete application" onDelete={onDelete} />
     </SidePanel>
   )
 }

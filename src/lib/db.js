@@ -51,6 +51,12 @@ export async function insertRow(table, values, client = supabase) {
 
 // RLS silently filters rows the user can't touch, so an update or delete that
 // matches nothing is reported as an error instead of a fake success.
+// Put back rows exactly as they were (same ids), e.g. to undo a delete.
+export async function insertRows(table, rows, client = supabase) {
+  const { error } = await client.from(table).insert(rows)
+  if (error) fail(error)
+}
+
 export async function updateRow(table, id, patch, client = supabase) {
   const { data, error } = await client.from(table).update(patch).eq('id', id).select('id')
   if (error) fail(error)

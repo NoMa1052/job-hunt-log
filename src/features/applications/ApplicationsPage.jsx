@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../../state/DataProvider'
 import { useProfile } from '../../state/ProfileProvider'
 import { safeUrl } from '../../lib/url'
 import { toCSV, downloadCSV, formatShortDate } from '../../lib/format'
-import { Button, Chip, ConfirmDialog, FollowUp, Icon, IconButton } from '../../ui'
+import { Button, Chip, FollowUp, Icon, IconButton } from '../../ui'
 import CollectionState from '../../components/CollectionState'
+import useDeleteConfirm from '../../components/useDeleteConfirm'
 import PageHeader from '../../components/PageHeader'
 import ApplicationPanel from './ApplicationPanel'
 import CustomizeMenu from '../views/CustomizeMenu'
@@ -16,11 +17,11 @@ import { EXPORT_HEADERS, PRIORITY_OPTIONS, followUp, optionLabel, statusChip } f
 import { applicationsModel, applyView, column, legacyToConfig } from './views'
 
 export default function ApplicationsPage() {
-  const { data, add, update, remove, reload } = useData()
+  const { data, add, update, reload } = useData()
   const { profile, status: profileStatus } = useProfile()
   const dateFormat = profile.date_format
   const applications = data.applications.rows
-  const [confirmId, setConfirmId] = useState(null)
+  const deletion = useDeleteConfirm()
   const views = useViewState({
     tableName: 'applications',
     model: applicationsModel,
@@ -42,6 +43,7 @@ export default function ApplicationsPage() {
     if (row) setEditingAppId(row.id)
   }
   const updateApplication = (id, field, value) => update('applications', id, field, value)
+  const askDelete = id => deletion.ask('applications', id, 'application', { then: () => { if (id === editingAppId) setEditingAppId(null) } })
 
   // The whole row opens the detail view; links and buttons inside it keep
   // their own behavior.
@@ -104,7 +106,7 @@ export default function ApplicationsPage() {
               >
                 {visibleColumns.map(col => renderAppCell(col, a, dateFormat))}
                 <td className="col-actions">
-                  <IconButton icon="x" size="sm" label="Delete application" onClick={() => setConfirmId(a.id)} />
+                  <IconButton icon="x" size="sm" label="Delete application" onClick={() => askDelete(a.id)} />
                 </td>
               </tr>
             ))}
@@ -122,15 +124,9 @@ export default function ApplicationsPage() {
       </div>
 
       {editingApp && (
-        <ApplicationPanel key={editingApp.id} app={editingApp} onUpdate={(field, value) => updateApplication(editingApp.id, field, value)} onClose={() => setEditingAppId(null)} />
+        <ApplicationPanel key={editingApp.id} app={editingApp} onUpdate={(field, value) => updateApplication(editingApp.id, field, value)} onDelete={() => askDelete(editingApp.id)} onClose={() => setEditingAppId(null)} />
       )}
-      {confirmId && (
-        <ConfirmDialog
-          message="Are you sure you want to delete this? This can't be undone."
-          onConfirm={() => { if (confirmId === editingAppId) setEditingAppId(null); remove('applications', confirmId); setConfirmId(null) }}
-          onCancel={() => setConfirmId(null)}
-        />
-      )}
+      {deletion.dialog}
     </section>
   )
 }

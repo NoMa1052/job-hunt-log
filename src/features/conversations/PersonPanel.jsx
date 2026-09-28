@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { formatShortDate, todayLocal } from '../../lib/format'
 import { mailtoUrl, telUrl, webUrl } from '../../lib/url'
 import { useProfile } from '../../state/ProfileProvider'
-import { Button, Field, Icon, Input, SidePanel, TextArea } from '../../ui'
+import PanelDelete from '../../components/PanelDelete'
+import { Button, Field, Icon, IconButton, Input, SidePanel, TextArea } from '../../ui'
 
 // Newest first; undated conversations go last, then by when they were logged.
 function byNewest(a, b) {
@@ -14,7 +15,7 @@ function byNewest(a, b) {
   return (b.created_at || '').localeCompare(a.created_at || '')
 }
 
-export default function PersonPanel({ person, entries, company, onUpdate, onAddEntry, onOpenCompany, onClose }) {
+export default function PersonPanel({ person, entries, company, onUpdate, onAddEntry, onDeleteEntry, onOpenCompany, onDelete, onClose }) {
   const { profile } = useProfile()
   const email = mailtoUrl(person.email)
   const phone = telUrl(person.phone)
@@ -74,7 +75,10 @@ export default function PersonPanel({ person, entries, company, onUpdate, onAddE
         <ol className="timeline">
           {timeline.map(e => (
             <li key={e.id} className="timeline-item">
-              <div className="timeline-date">{e.date ? formatShortDate(e.date, undefined, profile.date_format) : 'No date'}</div>
+              <div className="timeline-head">
+                <div className="timeline-date">{e.date ? formatShortDate(e.date, undefined, profile.date_format) : 'No date'}</div>
+                <IconButton icon="trash" size="sm" label={`Delete conversation from ${e.date ? formatShortDate(e.date, undefined, profile.date_format) : 'no date'}`} onClick={() => onDeleteEntry(e.id)} />
+              </div>
               {e.recommendation && (
                 <div className="timeline-rec">
                   <span className="timeline-rec-label">Recommended</span>
@@ -86,6 +90,8 @@ export default function PersonPanel({ person, entries, company, onUpdate, onAddE
           ))}
         </ol>
       </section>
+
+      <PanelDelete label="Delete person" onDelete={onDelete} />
     </SidePanel>
   )
 }

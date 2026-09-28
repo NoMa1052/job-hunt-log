@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../../state/DataProvider'
 import { useProfile } from '../../state/ProfileProvider'
 import { toCSV, downloadCSV, formatShortDate } from '../../lib/format'
 import { sameCompany } from '../../lib/match'
-import { Button, ConfirmDialog, IconButton } from '../../ui'
+import { Button, IconButton } from '../../ui'
 import CollectionState from '../../components/CollectionState'
+import useDeleteConfirm from '../../components/useDeleteConfirm'
 import PageHeader from '../../components/PageHeader'
 import CustomizeMenu from '../views/CustomizeMenu'
 import SortHeader from '../views/SortHeader'
@@ -23,11 +24,11 @@ const EXPORT_HEADERS = [
 const dash = <span aria-label="None">—</span>
 
 export default function ConversationsPage() {
-  const { data, add, update, remove, reload } = useData()
+  const { data, add, update, reload } = useData()
   const { profile } = useProfile()
   const entries = data.entries.rows
   const people = useMemo(() => withActivity(data.people.rows, entries), [data.people.rows, entries])
-  const [confirmId, setConfirmId] = useState(null)
+  const deletion = useDeleteConfirm()
   const views = useViewState({ tableName: 'people', model: peopleModel, basePath: '/app/conversations' })
   const { config, setConfig, waitingForView } = views
 
@@ -43,6 +44,13 @@ export default function ConversationsPage() {
   }
   const updatePerson = (id, field, value) => update('people', id, field, value)
   const entriesFor = id => entries.filter(e => e.person_id === id)
+  const askDelete = id => {
+    const talks = entriesFor(id).length
+    deletion.ask('people', id, 'person', {
+      extra: talks ? ` Their ${talks === 1 ? 'conversation' : `${talks} conversations`} will be deleted too.` : '',
+      then: () => { if (id === personId) openPerson(null) },
+    })
+  }
 
   const visibleColumns = config.columns.filter(c => c.visible).map(c => peopleModel.column(c.key))
   const shownPeople = useMemo(() => peopleModel.applyView(people, config), [people, config])
@@ -118,7 +126,7 @@ export default function ConversationsPage() {
                 }}
               >
                 {visibleColumns.map(col => renderCell(col, p))}
-                <td className="col-actions"><IconButton icon="x" size="sm" label="Delete person" onClick={() => setConfirmId(p.id)} /></td>
+                <td className="col-actions"><IconButton icon="x" size="sm" label="Delete person" onClick={() => askDelete(p.id)} /></td>
               </tr>
             ))}
           </tbody>
@@ -143,16 +151,12 @@ export default function ConversationsPage() {
           onUpdate={(field, value) => updatePerson(openedPerson.id, field, value)}
           onAddEntry={({ date, recommendation, notes }) => add('entries', { person_id: openedPerson.id, date, recommendation, notes })}
           onOpenCompany={() => navigate(`/app/companies/${personCompany.id}`)}
+          onDeleteEntry={id => deletion.ask('entries', id, 'conversation')}
+          onDelete={() => askDelete(openedPerson.id)}
           onClose={() => openPerson(null)}
         />
       )}
-      {confirmId && (
-        <ConfirmDialog
-          message="Are you sure you want to delete this? This can't be undone."
-          onConfirm={() => { if (confirmId === personId) openPerson(null); remove('people', confirmId); setConfirmId(null) }}
-          onCancel={() => setConfirmId(null)}
-        />
-      )}
+      {deletion.dialog}
     </section>
   )
 }

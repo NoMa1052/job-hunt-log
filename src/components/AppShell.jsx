@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import brand from '../config/brand'
 import SaveStatus from './SaveStatus'
+import UndoToast from './UndoToast'
 import SidekickLogo from './SidekickLogo'
 import UserMenu from './UserMenu'
 
@@ -31,6 +32,7 @@ export default function AppShell() {
       <main className="page">
         <Outlet />
         <SaveStatus />
+        <UndoToast />
       </main>
     </div>
   )
