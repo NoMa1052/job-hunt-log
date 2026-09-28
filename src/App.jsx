@@ -3,6 +3,8 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom
 import { supabase } from './lib/supabaseClient'
 import { DataProvider } from './state/DataProvider'
 import { UserContext } from './state/UserContext'
+import { ProfileProvider } from './state/ProfileProvider'
+import SettingsPage from './features/settings/SettingsPage'
 import AppShell from './components/AppShell'
 import AuthScreen from './features/auth/AuthScreen'
 import ResetPasswordPage from './features/auth/ResetPasswordPage'
@@ -39,9 +41,10 @@ export default function App() {
             <Route path="/" element={<Navigate to="/app/applications" replace />} />
             <Route path="/app" element={<AppShell />}>
               <Route index element={<Navigate to="applications" replace />} />
-              <Route path="applications" element={<ApplicationsPage />} />
+              <Route path="applications/:appId?" element={<ApplicationsPage />} />
               <Route path="conversations" element={<ConversationsPage />} />
               <Route path="companies" element={<CompaniesPage />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/app/applications" replace />} />
           </Route>
@@ -60,7 +63,9 @@ function SignedIn({ user }) {
   return (
     <UserContext.Provider value={user}>
       <DataProvider key={user.id} userId={user.id}>
-        <Outlet />
+        <ProfileProvider>
+          <Outlet />
+        </ProfileProvider>
       </DataProvider>
     </UserContext.Provider>
   )

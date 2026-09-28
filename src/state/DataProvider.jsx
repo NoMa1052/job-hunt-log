@@ -105,8 +105,9 @@ export function DataProvider({ userId, children }) {
     add,
     update,
     remove,
+    track,
     save: { pending, error: saveError, savedOnce, dismiss: () => setSaveError('') },
-  }), [userId, data, reload, reloadAll, add, update, remove, pending, saveError, savedOnce])
+  }), [userId, data, reload, reloadAll, add, update, remove, track, pending, saveError, savedOnce])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

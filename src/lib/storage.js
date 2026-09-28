@@ -27,3 +27,7 @@ export function loadPref(userId, name, fallback, store = globalThis.localStorage
 export function savePref(userId, name, value, store = globalThis.localStorage) {
   try { store.setItem(storageKey(userId, name), JSON.stringify(value)) } catch { /* ignore */ }
 }
+
+export function clearPref(userId, name, store = globalThis.localStorage) {
+  try { store.removeItem(storageKey(userId, name)) } catch { /* ignore */ }
+}

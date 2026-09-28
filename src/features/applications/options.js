@@ -28,9 +28,9 @@ export const ALL_COLUMNS = [
   { key: 'salary', label: 'Salary', type: 'text' },
   { key: 'follow_up_date', label: 'Follow-up', type: 'date' },
   { key: 'interview_date', label: 'Interview', type: 'date' },
-  { key: 'hiring_manager', label: 'Hiring mgr', type: 'text' },
+  { key: 'hiring_manager', label: 'Hiring manager', type: 'text' },
   { key: 'connections', label: 'Connections', type: 'text' },
-  { key: 'letter', label: 'Letter', type: 'icon' }
+  { key: 'letter', label: 'Cover letter', type: 'icon', field: 'cover_letter_link' }
 ]
 export const DEFAULT_ORDER = ALL_COLUMNS.map(c => c.key)
 export const DEFAULT_HIDDEN = ['interview_date', 'hiring_manager', 'connections']
@@ -52,22 +52,6 @@ export function statusCounts(applications) {
   return counts
 }
 
-export function passesFilters(app, filters) {
-  for (const col of ALL_COLUMNS) {
-    if (col.type === 'text') {
-      const f = (filters[col.key] || '').trim().toLowerCase()
-      if (f && !(app[col.key] || '').toString().toLowerCase().includes(f)) return false
-    } else if (col.type === 'select') {
-      const allowed = filters[col.key]
-      if (allowed && allowed.length < col.options.length) {
-        const val = app[col.key] || col.fallback
-        if (!allowed.includes(val)) return false
-      }
-    }
-  }
-  return true
-}
-
 export function statusChip(status) {
   const option = STATUS_OPTIONS.find(o => o.value === (status || 'applied'))
   return option ? { kind: option.chip, label: option.label } : { kind: 'closed', label: status }
@@ -78,13 +62,13 @@ export function optionLabel(options, value, fallback) {
 }
 
 // What the follow-up column shows for an application.
-export function followUp(app, today = todayLocal()) {
+export function followUp(app, today = todayLocal(), format = 'month_day') {
   if (CLOSED_STATUSES.includes(app.status)) return { state: 'none', text: 'No follow-up' }
   if (!app.follow_up_date) return { state: 'none', text: 'Set a date' }
   const late = daysBetween(app.follow_up_date, today)
   if (late > 0) return { state: 'overdue', text: `Follow up, ${late} ${late === 1 ? 'day' : 'days'} late` }
   if (late === 0) return { state: 'due', text: 'Follow up today' }
-  return { state: 'upcoming', text: formatShortDate(app.follow_up_date) }
+  return { state: 'upcoming', text: formatShortDate(app.follow_up_date, undefined, format) }
 }
 
 export function followUpsDue(applications, today = todayLocal()) {

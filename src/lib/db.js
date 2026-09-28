@@ -62,3 +62,22 @@ export async function deleteRow(table, id, client = supabase) {
   if (error) fail(error)
   if (!data || data.length === 0) fail({ message: "That item couldn't be found. It may have been deleted." })
 }
+
+export async function upsertRow(table, values, onConflict, client = supabase) {
+  const { data, error } = await client.from(table).upsert(values, { onConflict }).select().single()
+  if (error) fail(error)
+  return data
+}
+
+export async function callFunction(name, args = {}, client = supabase) {
+  const { data, error } = await client.rpc(name, args)
+  if (error) fail(error)
+  return data
+}
+
+// "The table or function isn't there yet" (migration not applied).
+export function isMissing(error) {
+  const code = error?.cause?.code
+  const message = error?.cause?.message || ''
+  return code === '42P01' || code === 'PGRST205' || code === 'PGRST202' || code === '42883' || /schema cache|does not exist/.test(message)
+}

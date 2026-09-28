@@ -150,3 +150,27 @@ tr:hover .ui-cell-pencil, .ui-cell-pencil:focus-visible { opacity: 1; }
 }
 .ui-cell-date:hover { border-color: var(--line-strong); }
 .ui-cell-date:focus { outline: 2px solid var(--indigo); outline-offset: 0; background: var(--surface); }
+
+/* Side panel -------------------------------------------------------------- */
+.ui-side-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 40;
+  width: min(520px, 100vw);
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  box-shadow: var(--shadow-pop);
+  color: var(--ink); font-family: var(--font-sans);
+  outline: none;
+}
+.ui-side-panel-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--line);
+}
+.ui-side-panel-titles { display: flex; flex-direction: column; gap: var(--space-1); flex: 1; min-width: 0; }
+.ui-side-panel-body { flex: 1; overflow-y: auto; padding: var(--space-6); }
+@media (max-width: 720px) {
+  .ui-side-panel { width: 100vw; border-left: 0; box-shadow: none; }
+  .ui-side-panel-header { padding-left: var(--space-4); }
+  .ui-side-panel-body { padding: var(--space-4); }
+}
