@@ -7,7 +7,7 @@ import { ProfileProvider } from './state/ProfileProvider'
 import SettingsPage from './features/settings/SettingsPage'
 import AppShell from './components/AppShell'
 import AppReady from './components/AppReady'
-import LoadingScreen from './components/LoadingScreen'
+import SplashScreen from './components/SplashScreen'
 import AuthScreen from './features/auth/AuthScreen'
 import ResetPasswordPage from './features/auth/ResetPasswordPage'
 import ApplicationsPage from './features/applications/ApplicationsPage'
@@ -38,8 +38,8 @@ export default function App() {
   return (
     <>
       {session !== undefined && <AppRoutes session={session} recovering={recovering} setRecovering={setRecovering} onLoaded={markLoaded} />}
-      {/* Keyed by user so signing in plays it again; signed out it skips. */}
-      <LoadingScreen key={userId || 'signed-out'} ready={ready} />
+      {/* Signed-in only; keyed by user so a new sign-in starts fresh. */}
+      {session && <SplashScreen key={userId} ready={ready} />}
     </>
   )
 }
