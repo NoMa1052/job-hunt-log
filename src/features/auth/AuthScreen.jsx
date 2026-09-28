@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react'
 import { clearAccountDeleted, wasAccountDeleted } from '../../lib/account'
 import { supabase } from '../../lib/supabaseClient'
 import brand from '../../config/brand'
-import { Button, Card, Field, Input } from '../../ui'
-import markUrl from '../../assets/sidekick-mark.svg'
+import { Button, Field, Input } from '../../ui'
+import AuthLayout from './AuthLayout'
 
-const SUBTITLES = {
-  signin: 'Sign in to your tracker',
-  signup: 'Create an account',
+const TITLES = {
+  signin: `Sign in to ${brand.name}`,
+  signup: 'Create your account',
   forgot: 'Reset your password',
 }
 
@@ -50,30 +50,23 @@ export default function AuthScreen() {
   const submitLabel = { signin: 'Sign in', signup: 'Create account', forgot: 'Send reset link' }[mode]
 
   return (
-    <main className="auth-page">
-      <Card className="auth-card">
-        <div className="auth-head">
-          <div className="sk-brand">
-            <img className="sk-brand__mark" src={markUrl} alt="" width="36" height="36" />
-            <h1 className="sk-brand__name">{brand.wordmark}</h1>
-          </div>
-          <p className="auth-sub">{SUBTITLES[mode]}</p>
-        </div>
-        <form onSubmit={submit} className="auth-form">
-          <Field label="Email"><Input type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} /></Field>
-          {mode !== 'forgot' && (
-            <Field label="Password" hint={mode === 'signup' ? 'At least 6 characters.' : undefined}><Input type="password" autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} required minLength={6} value={password} onChange={e => setPassword(e.target.value)} /></Field>
-          )}
-          {error && <p className="auth-msg error" role="alert">{error}</p>}
-          {info && <p className="auth-msg info">{info}</p>}
-          <Button variant="primary" type="submit" disabled={loading}>{loading ? 'Please wait…' : submitLabel}</Button>
-        </form>
-        <div className="auth-switch auth-switch--stack">
-          {mode === 'signin' && <Button variant="link" onClick={() => switchMode('forgot')}>Forgot password?</Button>}
-          {mode === 'signin' && <Button variant="link" onClick={() => switchMode('signup')}>Don't have an account? Sign up</Button>}
-          {mode !== 'signin' && <Button variant="link" onClick={() => switchMode('signin')}>Back to sign in</Button>}
-        </div>
-      </Card>
-    </main>
+    <AuthLayout title={TITLES[mode]}>
+      <form onSubmit={submit} className="auth-form">
+        {mode === 'forgot' && <p className="auth-note">Enter your email and we'll send you a link to choose a new password.</p>}
+        <Field label="Email"><Input type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} /></Field>
+        {mode !== 'forgot' && (
+          <Field label="Password" hint={mode === 'signup' ? 'At least 6 characters.' : undefined}><Input type="password" autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} required minLength={6} value={password} onChange={e => setPassword(e.target.value)} /></Field>
+        )}
+        {error && <p className="auth-msg error" role="alert">{error}</p>}
+        {info && <p className="auth-msg info" role="status">{info}</p>}
+        <Button variant="primary" type="submit" className="auth-submit" disabled={loading}>{loading ? 'Please wait…' : submitLabel}</Button>
+      </form>
+      <div className="auth-links">
+        {mode === 'signin' && <p><Button variant="link" onClick={() => switchMode('forgot')}>Forgot password?</Button></p>}
+        {mode === 'signin' && <p>Don't have an account? <Button variant="link" onClick={() => switchMode('signup')}>Sign up</Button></p>}
+        {mode === 'signup' && <p>Already have an account? <Button variant="link" onClick={() => switchMode('signin')}>Sign in</Button></p>}
+        {mode === 'forgot' && <p><Button variant="link" onClick={() => switchMode('signin')}>Back to sign in</Button></p>}
+      </div>
+    </AuthLayout>
   )
 }

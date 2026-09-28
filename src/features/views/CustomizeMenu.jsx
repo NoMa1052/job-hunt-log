@@ -19,7 +19,7 @@ export default function CustomizeMenu({ model, config, onChange, onReset, canRes
       align="end"
       className="customize-popover"
       trigger={({ open, toggle }) => (
-        <Button variant="secondary" icon="columns" onClick={toggle} aria-expanded={open}>
+        <Button variant="secondary" icon="sliders" onClick={toggle} aria-expanded={open}>
           {active ? `Customize · ${active}` : 'Customize'}
         </Button>
       )}

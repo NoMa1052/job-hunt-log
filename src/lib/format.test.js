@@ -68,12 +68,20 @@ describe('date format preference', () => {
   })
 })
 
-describe('initialsFromName', async () => {
-  const { initialsFromName } = await import('./initials')
-  it('uses first and last name', () => {
-    expect(initialsFromName('Pat Lee')).toBe('PL')
-    expect(initialsFromName('  mary ann smith ')).toBe('MS')
-    expect(initialsFromName('Madonna')).toBe('MA')
-    expect(initialsFromName('')).toBe('')
+describe('name helpers', async () => {
+  const { initialsFromParts, joinName, splitName } = await import('./initials')
+  it('uses both initials, or one letter when only one name is filled in', () => {
+    expect(initialsFromParts('Pat', 'Lee')).toBe('PL')
+    expect(initialsFromParts(' mary ', ' ann smith')).toBe('MA')
+    expect(initialsFromParts('Madonna', '')).toBe('M')
+    expect(initialsFromParts('', 'Lee')).toBe('L')
+    expect(initialsFromParts('', '  ')).toBe('')
+  })
+  it('splits and joins names', () => {
+    expect(splitName('  Pat Lee Smith ')).toEqual({ first: 'Pat', last: 'Lee Smith' })
+    expect(splitName('Madonna')).toEqual({ first: 'Madonna', last: '' })
+    expect(splitName('')).toEqual({ first: '', last: '' })
+    expect(joinName(' Pat ', 'Lee')).toBe('Pat Lee')
+    expect(joinName('', 'Lee')).toBe('Lee')
   })
 })

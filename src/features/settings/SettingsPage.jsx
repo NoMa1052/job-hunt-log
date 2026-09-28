@@ -4,7 +4,7 @@ import { callFunction, isMissing } from '../../lib/db'
 import { markAccountDeleted } from '../../lib/account'
 import brand from '../../config/brand'
 import { DATE_FORMATS, formatShortDate, todayLocal } from '../../lib/format'
-import { initialsFor, initialsFromName } from '../../lib/initials'
+import { initialsFor, initialsFromParts } from '../../lib/initials'
 import { useProfile } from '../../state/ProfileProvider'
 import { useUser } from '../../state/UserContext'
 import useTableViews from '../../state/useTableViews'
@@ -24,7 +24,7 @@ export default function SettingsPage() {
       {unavailable && <p className="views-note" role="status">Profile and preferences can't be saved right now. Account settings still work.</p>}
       <ProfileSection disabled={unavailable || status === 'loading'} />
       <AccountSection />
-      <PreferencesSection disabled={unavailable || status === 'loading'} />
+      <DisplaySection disabled={unavailable || status === 'loading'} />
       <ConnectionsSection />
     </section>
   )
@@ -50,20 +50,21 @@ function ProfileSection({ disabled }) {
   const [message, setMessage] = useState('')
   const values = form || { ...profile, target_roles: profile.target_roles.join(', ') }
   const set = key => e => { setForm({ ...values, [key]: e.target.value }); setErrors({ ...errors, [key]: undefined }); setMessage('') }
-  const initials = initialsFromName(values.full_name) || initialsFor(user?.email)
+  const initials = initialsFromParts(values.first_name, values.last_name) || initialsFor(user?.email)
 
   async function submit(e) {
     e.preventDefault()
     const roles = values.target_roles.split(',').map(r => r.trim()).filter(Boolean)
     const next = {}
-    if (values.full_name.trim().length > 100) next.full_name = 'Use 100 characters or fewer.'
+    if (values.first_name.trim().length > 50) next.first_name = 'Use 50 characters or fewer.'
+    if (values.last_name.trim().length > 50) next.last_name = 'Use 50 characters or fewer.'
     if (roles.length > 20) next.target_roles = 'List up to 20 roles, separated by commas.'
     else if (roles.some(r => r.length > 60)) next.target_roles = 'Keep each role under 60 characters.'
     if (values.location.trim().length > 100) next.location = 'Use 100 characters or fewer.'
     if (values.bio.length > 1000) next.bio = `Shorten your bio by ${values.bio.length - 1000} characters.`
     setErrors(next)
     if (Object.keys(next).length) return
-    const ok = await save({ full_name: values.full_name.trim(), target_roles: roles, location: values.location.trim(), bio: values.bio })
+    const ok = await save({ first_name: values.first_name.trim(), last_name: values.last_name.trim(), target_roles: roles, location: values.location.trim(), bio: values.bio })
     if (ok) { setForm(null); setMessage('Profile saved.') }
   }
 
@@ -72,10 +73,13 @@ function ProfileSection({ disabled }) {
       <form className="settings-form" onSubmit={submit}>
         <div className="profile-avatar" aria-hidden="true">{initials}</div>
         <div className="settings-grid">
-          <Field label="Name" error={errors.full_name}>
-            <Input value={values.full_name} onChange={set('full_name')} autoComplete="name" disabled={disabled} />
+          <Field label="First name" error={errors.first_name}>
+            <Input value={values.first_name} onChange={set('first_name')} autoComplete="given-name" disabled={disabled} />
           </Field>
-          <Field label="Location" error={errors.location}>
+          <Field label="Last name" error={errors.last_name}>
+            <Input value={values.last_name} onChange={set('last_name')} autoComplete="family-name" disabled={disabled} />
+          </Field>
+          <Field label="Location" error={errors.location} className="span-all">
             <Input value={values.location} onChange={set('location')} placeholder="e.g. Chicago, IL or Remote" disabled={disabled} />
           </Field>
           <Field label="Target roles" hint="Separate roles with commas." error={errors.target_roles} className="span-all">
@@ -200,27 +204,30 @@ const TABS = [
   { table: 'companies', label: 'Companies', all: 'All companies' },
 ]
 
-function PreferencesSection({ disabled }) {
+function DisplaySection({ disabled }) {
   const { profile, save } = useProfile()
   const today = todayLocal()
 
   return (
-    <SectionCard title="Preferences" description={`How ${brand.name} opens and shows dates.`}>
+    <SectionCard title="Display">
       <fieldset className="settings-fieldset">
-        <legend className="sk-label">Default views</legend>
-        <p className="settings-desc">The view each tab opens with.</p>
+        <legend className="settings-option">Start each tab on</legend>
+        <p className="settings-desc">Which saved view each tab opens with. "All" shows everything.</p>
         <div className="settings-grid">
           {TABS.map(t => <DefaultViewSelect key={t.table} tab={t} />)}
         </div>
       </fieldset>
       <fieldset className="settings-fieldset">
-        <legend className="sk-label">Date format</legend>
-        {DATE_FORMATS.map(f => (
-          <label key={f.value} className="radio-row">
-            <input type="radio" name="date_format" value={f.value} checked={profile.date_format === f.value} disabled={disabled} onChange={() => save({ date_format: f.value })} />
-            {formatShortDate(today, undefined, f.value)}
-          </label>
-        ))}
+        <legend className="settings-option">Date format</legend>
+        <p className="settings-desc">How dates look everywhere in {brand.name}.</p>
+        <div className="radio-group">
+          {DATE_FORMATS.map(f => (
+            <label key={f.value} className="radio-row">
+              <input type="radio" name="date_format" value={f.value} checked={profile.date_format === f.value} disabled={disabled} onChange={() => save({ date_format: f.value })} />
+              {formatShortDate(today, undefined, f.value)}
+            </label>
+          ))}
+        </div>
       </fieldset>
     </SectionCard>
   )
@@ -237,10 +244,10 @@ function DefaultViewSelect({ tab }) {
   const off = status === 'unavailable' || status === 'error'
 
   return (
-    <Field label={tab.label} hint={off ? 'Saved views are off right now.' : views.length === 0 && status === 'ready' ? 'Save a view on this tab to pick it here.' : undefined}>
+    <Field label={tab.label} hint={off ? "Saved views can't load right now." : views.length === 0 && status === 'ready' ? 'No saved views yet. Save one from Customize on that tab.' : undefined}>
       <select
         className="sk-input"
-        disabled={status !== 'ready' || views.length === 0 || (legacy && (profileStatus === 'loading' || profileStatus === 'unavailable'))}
+        disabled={off || (legacy && profileStatus === 'unavailable')}
         value={value}
         onChange={e => {
           const id = e.target.value === ALL_VIEW ? null : e.target.value
@@ -255,16 +262,23 @@ function DefaultViewSelect({ tab }) {
   )
 }
 
+const CONNECTIONS = [
+  { name: 'Chrome extension', desc: `Save any job posting to ${brand.name} in one click.`, action: 'Add to Chrome' },
+  { name: 'Gmail', desc: 'Track applications and replies from your inbox automatically.', action: 'Connect' },
+]
+
 function ConnectionsSection() {
   return (
     <SectionCard title="Connections" description={`Link other tools to keep ${brand.name} up to date automatically.`}>
-      <div className="connection-row">
-        <div>
-          <p className="connection-name">Gmail <span className="soon-badge">Coming soon</span></p>
-          <p className="settings-desc">Track applications and replies from your inbox automatically.</p>
+      {CONNECTIONS.map(c => (
+        <div key={c.name} className="connection-row">
+          <div>
+            <p className="connection-name">{c.name} <span className="soon-badge">Coming soon</span></p>
+            <p className="settings-desc">{c.desc}</p>
+          </div>
+          <Button disabled>{c.action}</Button>
         </div>
-        <Button disabled>Connect</Button>
-      </div>
+      ))}
     </SectionCard>
   )
 }

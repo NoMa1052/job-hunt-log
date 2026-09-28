@@ -3,7 +3,7 @@
 const brand = {
   name: 'Sidekick',
   wordmark: 'sidekick', // rendered lowercase in Fraunces
-  tagline: 'Applications & networking, operations style',
+  tagline: 'Every application, contact, and follow-up in one place.',
   description: 'Job hunt tracker with an applications ledger, a networking conversation log, and a companies watchlist.',
 }
 

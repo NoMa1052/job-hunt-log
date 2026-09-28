@@ -2,9 +2,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { DbError, friendlyMessage, isMissing, upsertRow } from '../lib/db'
+import { joinName, splitName } from '../lib/initials'
 import { useData } from './DataProvider'
 
 export const EMPTY_PROFILE = Object.freeze({
+  first_name: '',
+  last_name: '',
   full_name: '',
   target_roles: [],
   location: '',
@@ -12,6 +15,17 @@ export const EMPTY_PROFILE = Object.freeze({
   default_view_id: null,
   date_format: 'month_day',
 })
+
+// Profiles saved before first and last name existed only have full_name.
+function fromRow(row) {
+  const p = { ...EMPTY_PROFILE, ...row }
+  if (row && row.first_name === undefined) {
+    const { first, last } = splitName(row.full_name)
+    p.first_name = first
+    p.last_name = last
+  }
+  return p
+}
 
 const ProfileContext = createContext({ profile: EMPTY_PROFILE, status: 'ready', save: async () => false })
 
@@ -30,7 +44,7 @@ export function ProfileProvider({ children }) {
         setStatus(isMissing(e) ? 'unavailable' : 'error')
         return
       }
-      if (data) setProfile({ ...EMPTY_PROFILE, ...data })
+      if (data) setProfile(fromRow(data))
       setStatus('ready')
     })
     return () => { cancelled = true }
@@ -40,17 +54,25 @@ export function ProfileProvider({ children }) {
     const next = { ...profile, ...patch }
     const before = profile
     setProfile(next)
-    const { ok, result } = await track(upsertRow('profiles', {
+    const row = {
       user_id: userId,
-      full_name: next.full_name,
+      first_name: next.first_name,
+      last_name: next.last_name,
+      full_name: joinName(next.first_name, next.last_name), // kept for older clients
       target_roles: next.target_roles,
       location: next.location,
       bio: next.bio,
       default_view_id: next.default_view_id,
       date_format: next.date_format,
-    }, 'user_id'))
+    }
+    const { ok, result } = await track(upsertRow('profiles', row, 'user_id').catch(e => {
+      // Before the first/last name migration: save the joined name only.
+      if (!isMissing(e)) throw e
+      const { first_name: _f, last_name: _l, ...legacy } = row
+      return upsertRow('profiles', legacy, 'user_id')
+    }))
     if (!ok) { setProfile(before); return false }
-    setProfile({ ...EMPTY_PROFILE, ...result })
+    setProfile(fromRow(result))
     return true
   }, [profile, track, userId])
 

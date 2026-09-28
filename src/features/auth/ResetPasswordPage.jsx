@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseClient'
-import brand from '../../config/brand'
-import { Button, Card, Field, Input } from '../../ui'
-import markUrl from '../../assets/sidekick-mark.svg'
+import { Button, Field, Input } from '../../ui'
+import AuthLayout from './AuthLayout'
 
 // Landing page for the emailed reset link. Supabase signs the user in from
 // the link (a short-lived recovery session); here they choose a new password.
@@ -31,42 +30,32 @@ export default function ResetPasswordPage({ session, onDone }) {
   }
 
   return (
-    <main className="auth-page">
-      <Card className="auth-card">
-        <div className="auth-head">
-          <div className="sk-brand">
-            <img className="sk-brand__mark" src={markUrl} alt="" width="36" height="36" />
-            <h1 className="sk-brand__name">{brand.wordmark}<span className="sr-only">: reset password</span></h1>
-          </div>
-          <p className="auth-sub">{done ? 'Password updated' : 'Choose a new password'}</p>
+    <AuthLayout title={done ? 'Password updated' : 'Choose a new password'}>
+      {!session && (
+        <>
+          <p className="auth-msg error" role="alert">This reset link is invalid or has expired. Request a new one from the sign-in page.</p>
+          <div className="auth-links"><p><Link className="ui-btn--link" to="/">Back to sign in</Link></p></div>
+        </>
+      )}
+
+      {session && done && (
+        <div className="auth-form">
+          <p className="auth-msg info" role="status">Your password has been changed.</p>
+          <Button variant="primary" className="auth-submit" onClick={() => navigate('/app', { replace: true })}>Continue</Button>
         </div>
+      )}
 
-        {!session && (
-          <>
-            <p className="auth-msg error" role="alert">This reset link is invalid or has expired. Request a new one from the sign-in page.</p>
-            <div className="auth-switch"><Link className="ui-btn ui-btn--link" to="/">Back to sign in</Link></div>
-          </>
-        )}
-
-        {session && done && (
-          <>
-            <p className="auth-msg info">Your password has been changed.</p>
-            <div className="auth-form"><Button variant="primary" onClick={() => navigate('/app', { replace: true })}>Continue</Button></div>
-          </>
-        )}
-
-        {session && !done && (
-          <form onSubmit={submit} className="auth-form">
-            <Field label="New password" hint="At least 6 characters." error={error ? `${error} Try a different password.` : undefined}>
-              <Input type="password" autoComplete="new-password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)} aria-invalid={Boolean(error)} />
-            </Field>
-            <Field label="Confirm new password" error={mismatch ? "Passwords don't match. Type the same password in both fields." : undefined}>
-              <Input type="password" autoComplete="new-password" required minLength={6} value={confirm} onChange={e => { setConfirm(e.target.value); setMismatch(false) }} aria-invalid={mismatch} />
-            </Field>
-            <Button variant="primary" type="submit" disabled={loading}>{loading ? 'Please wait…' : 'Update password'}</Button>
-          </form>
-        )}
-      </Card>
-    </main>
+      {session && !done && (
+        <form onSubmit={submit} className="auth-form">
+          <Field label="New password" hint="At least 6 characters." error={error ? `${error} Try a different password.` : undefined}>
+            <Input type="password" autoComplete="new-password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)} aria-invalid={Boolean(error)} />
+          </Field>
+          <Field label="Confirm new password" error={mismatch ? "Passwords don't match. Type the same password in both fields." : undefined}>
+            <Input type="password" autoComplete="new-password" required minLength={6} value={confirm} onChange={e => { setConfirm(e.target.value); setMismatch(false) }} aria-invalid={mismatch} />
+          </Field>
+          <Button variant="primary" type="submit" className="auth-submit" disabled={loading}>{loading ? 'Please wait…' : 'Update password'}</Button>
+        </form>
+      )}
+    </AuthLayout>
   )
 }

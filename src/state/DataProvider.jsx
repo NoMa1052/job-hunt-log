@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components -- the provider, its hook and its collection map belong together */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { fetchAll, insertRow, updateRow, deleteRow } from '../lib/db'
+import { fetchAll, insertRow, insertRows, updateRow, deleteRow } from '../lib/db'
 
 // Each collection the app keeps in memory, the table it comes from and how it's sorted.
 export const COLLECTIONS = {
@@ -30,6 +30,7 @@ export function DataProvider({ userId, children }) {
   const [pending, setPending] = useState(0)
   const [saveError, setSaveError] = useState('')
   const [savedOnce, setSavedOnce] = useState(false)
+  const [undo, setUndo] = useState(null) // the last delete, while it can be undone
   const dataRef = useRef(data)
   dataRef.current = data
 
@@ -95,7 +96,43 @@ export function DataProvider({ userId, children }) {
       reload(name)
       if (child) reload(child.collection)
     }
+    return ok
   }, [track, setCollection, reload])
+
+  // Delete right away, and offer Undo for a few seconds (see UndoToast).
+  // Undo puts the exact rows back, children included (a person's
+  // conversations, a company's notes), in their old places in the list.
+  const removeWithUndo = useCallback(async (name, id, label) => {
+    const snapshot = c => {
+      const rows = dataRef.current[c].rows
+      return rows.map((row, index) => ({ row, index }))
+    }
+    const own = snapshot(name).filter(x => x.row.id === id)
+    if (own.length === 0) return
+    const child = CHILDREN[name]
+    const kids = child ? snapshot(child.collection).filter(x => x.row[child.key] === id) : []
+    const ok = await remove(name, id)
+    if (!ok) return
+    const putBack = (c, items) => setCollection(c, col => {
+      const rows = [...col.rows]
+      for (const { row, index } of items) if (!rows.some(r => r.id === row.id)) rows.splice(Math.min(index, rows.length), 0, row)
+      return { rows }
+    })
+    setUndo({
+      key: `${name}:${id}:${Date.now()}`,
+      label,
+      restore: async () => {
+        setUndo(null)
+        const { ok: restored } = await track((async () => {
+          await insertRows(COLLECTIONS[name].table, own.map(x => x.row))
+          if (kids.length) await insertRows(COLLECTIONS[child.collection].table, kids.map(x => x.row))
+        })())
+        if (!restored) return
+        putBack(name, own)
+        if (kids.length) putBack(child.collection, kids)
+      },
+    })
+  }, [remove, setCollection, track])
 
   const value = useMemo(() => ({
     userId,
@@ -105,9 +142,11 @@ export function DataProvider({ userId, children }) {
     add,
     update,
     remove,
+    removeWithUndo,
+    undo: undo && { ...undo, dismiss: () => setUndo(u => (u && u.key === undo.key ? null : u)) },
     track,
     save: { pending, error: saveError, savedOnce, dismiss: () => setSaveError('') },
-  }), [userId, data, reload, reloadAll, add, update, remove, track, pending, saveError, savedOnce])
+  }), [userId, data, reload, reloadAll, add, update, remove, removeWithUndo, undo, track, pending, saveError, savedOnce])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

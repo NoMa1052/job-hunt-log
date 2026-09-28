@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../../state/DataProvider'
 import { sameCompany } from '../../lib/match'
 import { safeUrl } from '../../lib/url'
 import { toCSV, downloadCSV, formatDate, formatDateTimeShort } from '../../lib/format'
-import { Button, ConfirmDialog, Icon, IconButton } from '../../ui'
+import { Button, Icon, IconButton } from '../../ui'
 import CollectionState from '../../components/CollectionState'
+import useDeleteConfirm from '../../components/useDeleteConfirm'
 import PageHeader from '../../components/PageHeader'
 import CustomizeMenu from '../views/CustomizeMenu'
 import SortHeader from '../views/SortHeader'
@@ -17,14 +18,14 @@ import { companiesModel, withCounts } from './columns'
 const dash = <span aria-label="None">—</span>
 
 export default function CompaniesPage() {
-  const { data, add, update, remove, reload } = useData()
+  const { data, add, update, reload } = useData()
   const companyNotes = data.companyNotes.rows
   const applications = data.applications.rows
   const companies = useMemo(
     () => withCounts(data.companies.rows, { applications, people: data.people.rows, notes: companyNotes }),
     [data.companies.rows, applications, data.people.rows, companyNotes],
   )
-  const [confirmId, setConfirmId] = useState(null)
+  const deletion = useDeleteConfirm()
   const views = useViewState({ tableName: 'companies', model: companiesModel, basePath: '/app/companies' })
   const { config, setConfig, waitingForView } = views
 
@@ -40,6 +41,13 @@ export default function CompaniesPage() {
   }
   const updateCompany = (id, field, value) => update('companies', id, field, value)
   const notesFor = id => companyNotes.filter(n => n.company_id === id)
+  const askDelete = id => {
+    const count = notesFor(id).length
+    deletion.ask('companies', id, 'company', {
+      extra: count ? ` Its ${count === 1 ? 'note' : `${count} notes`} will be deleted too. Applications and people aren't affected.` : " Applications and people aren't affected.",
+      then: () => { if (id === companyId) openCompany(null) },
+    })
+  }
   const applicationsAt = name => applications.filter(a => sameCompany(a.company, name))
   const peopleAt = name => data.people.rows
     .filter(p => sameCompany(p.company, name))
@@ -131,7 +139,7 @@ export default function CompaniesPage() {
                 }}
               >
                 {visibleColumns.map(col => renderCell(col, c))}
-                <td className="col-actions"><IconButton icon="x" size="sm" label="Delete company" onClick={() => setConfirmId(c.id)} /></td>
+                <td className="col-actions"><IconButton icon="x" size="sm" label="Delete company" onClick={() => askDelete(c.id)} /></td>
               </tr>
             ))}
           </tbody>
@@ -158,16 +166,12 @@ export default function CompaniesPage() {
           onAddNote={note => add('companyNotes', { company_id: openedCompany.id, note })}
           onOpenApplication={id => navigate(`/app/applications/${id}`)}
           onOpenPerson={id => navigate(`/app/conversations/${id}`)}
+          onDeleteNote={id => deletion.ask('companyNotes', id, 'note')}
+          onDelete={() => askDelete(openedCompany.id)}
           onClose={() => openCompany(null)}
         />
       )}
-      {confirmId && (
-        <ConfirmDialog
-          message="Are you sure you want to delete this? This can't be undone."
-          onConfirm={() => { if (confirmId === companyId) openCompany(null); remove('companies', confirmId); setConfirmId(null) }}
-          onCancel={() => setConfirmId(null)}
-        />
-      )}
+      {deletion.dialog}
     </section>
   )
 }
