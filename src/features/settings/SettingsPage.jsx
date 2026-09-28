@@ -9,7 +9,7 @@ import { useProfile } from '../../state/ProfileProvider'
 import { useUser } from '../../state/UserContext'
 import useTableViews from '../../state/useTableViews'
 import { Button, Card, Field, Input, Modal, TextArea } from '../../ui'
-import { ALL_VIEW } from '../applications/ViewTabs'
+import { ALL_VIEW } from '../views/ViewTabs'
 
 export default function SettingsPage() {
   const { status } = useProfile()
@@ -194,37 +194,64 @@ function DeleteAccountDialog({ onCancel }) {
   )
 }
 
+const TABS = [
+  { table: 'applications', label: 'Applications', all: 'All applications' },
+  { table: 'people', label: 'Conversations', all: 'All conversations' },
+  { table: 'companies', label: 'Companies', all: 'All companies' },
+]
+
 function PreferencesSection({ disabled }) {
   const { profile, save } = useProfile()
-  const { views, status } = useTableViews('applications')
   const today = todayLocal()
-  const viewMissing = profile.default_view_id && status === 'ready' && !views.some(v => v.id === profile.default_view_id)
 
   return (
     <SectionCard title="Preferences" description={`How ${brand.name} opens and shows dates.`}>
-      <div className="settings-grid">
-        <Field label="Default view" hint={status === 'unavailable' ? 'Saved views are off right now.' : 'The Applications view that opens first.'}>
-          <select
-            className="sk-input"
-            disabled={disabled || status !== 'ready'}
-            value={viewMissing ? ALL_VIEW : profile.default_view_id || ALL_VIEW}
-            onChange={e => save({ default_view_id: e.target.value === ALL_VIEW ? null : e.target.value })}
-          >
-            <option value={ALL_VIEW}>All applications</option>
-            {views.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-          </select>
-        </Field>
-        <fieldset className="settings-fieldset">
-          <legend className="sk-label">Date format</legend>
-          {DATE_FORMATS.map(f => (
-            <label key={f.value} className="radio-row">
-              <input type="radio" name="date_format" value={f.value} checked={profile.date_format === f.value} disabled={disabled} onChange={() => save({ date_format: f.value })} />
-              {formatShortDate(today, undefined, f.value)}
-            </label>
-          ))}
-        </fieldset>
-      </div>
+      <fieldset className="settings-fieldset">
+        <legend className="sk-label">Default views</legend>
+        <p className="settings-desc">The view each tab opens with.</p>
+        <div className="settings-grid">
+          {TABS.map(t => <DefaultViewSelect key={t.table} tab={t} />)}
+        </div>
+      </fieldset>
+      <fieldset className="settings-fieldset">
+        <legend className="sk-label">Date format</legend>
+        {DATE_FORMATS.map(f => (
+          <label key={f.value} className="radio-row">
+            <input type="radio" name="date_format" value={f.value} checked={profile.date_format === f.value} disabled={disabled} onChange={() => save({ date_format: f.value })} />
+            {formatShortDate(today, undefined, f.value)}
+          </label>
+        ))}
+      </fieldset>
     </SectionCard>
+  )
+}
+
+// Per-tab defaults live on the views themselves. Until that's in the
+// database, Applications falls back to the older default on the profile.
+function DefaultViewSelect({ tab }) {
+  const { profile, status: profileStatus, save } = useProfile()
+  const { views, status, perTabDefaults, defaultId, setDefault } = useTableViews(tab.table)
+  const legacy = tab.table === 'applications' && !perTabDefaults
+  const current = legacy ? profile.default_view_id : defaultId
+  const value = current && views.some(v => v.id === current) ? current : ALL_VIEW
+  const off = status === 'unavailable' || status === 'error'
+
+  return (
+    <Field label={tab.label} hint={off ? 'Saved views are off right now.' : views.length === 0 && status === 'ready' ? 'Save a view on this tab to pick it here.' : undefined}>
+      <select
+        className="sk-input"
+        disabled={status !== 'ready' || views.length === 0 || (legacy && (profileStatus === 'loading' || profileStatus === 'unavailable'))}
+        value={value}
+        onChange={e => {
+          const id = e.target.value === ALL_VIEW ? null : e.target.value
+          if (legacy) save({ default_view_id: id })
+          else setDefault(id)
+        }}
+      >
+        <option value={ALL_VIEW}>{tab.all}</option>
+        {views.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+      </select>
+    </Field>
   )
 }
 

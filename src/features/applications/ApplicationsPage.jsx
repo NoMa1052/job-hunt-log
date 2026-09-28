@@ -1,60 +1,41 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../../state/DataProvider'
 import { useProfile } from '../../state/ProfileProvider'
-import useTableViews from '../../state/useTableViews'
 import { safeUrl } from '../../lib/url'
 import { toCSV, downloadCSV, formatShortDate } from '../../lib/format'
 import { Button, Chip, ConfirmDialog, FollowUp, Icon, IconButton } from '../../ui'
 import CollectionState from '../../components/CollectionState'
 import PageHeader from '../../components/PageHeader'
 import ApplicationPanel from './ApplicationPanel'
-import ColumnsMenu from './ColumnsMenu'
-import FilterBuilder from './FilterBuilder'
-import ViewTabs, { ALL_VIEW } from './ViewTabs'
+import CustomizeMenu from '../views/CustomizeMenu'
+import SortHeader from '../views/SortHeader'
+import { ViewsBar } from '../views/ViewTabs'
+import useViewState from '../views/useViewState'
 import { EXPORT_HEADERS, PRIORITY_OPTIONS, followUp, optionLabel, statusChip } from './options'
-import { DEFAULT_CONFIG, applyView, column, legacyToConfig, nextSort, normalizeConfig, sameConfig } from './views'
+import { applicationsModel, applyView, column, legacyToConfig } from './views'
 
 export default function ApplicationsPage() {
   const { data, add, update, remove, reload } = useData()
   const { profile, status: profileStatus } = useProfile()
-  const defaultViewId = profile.default_view_id
   const dateFormat = profile.date_format
   const applications = data.applications.rows
-  const tableViews = useTableViews('applications', { legacyToConfig })
   const [confirmId, setConfirmId] = useState(null)
-  const [allConfig, setAllConfig] = useState(DEFAULT_CONFIG)
+  const views = useViewState({
+    tableName: 'applications',
+    model: applicationsModel,
+    basePath: '/app/applications',
+    legacyToConfig,
+    fallbackDefaultId: profile.default_view_id,
+    fallbackLoading: profileStatus === 'loading',
+  })
+  const { config, setConfig, waitingForView } = views
 
-  // The open application and the active view both live in the URL, so
-  // reload, back and shared links work.
+  // The open application lives in the URL, so reload, back and shared links work.
   const { appId: editingAppId } = useParams()
   const navigate = useNavigate()
   const { search } = useLocation()
-  const [searchParams] = useSearchParams()
   const setEditingAppId = id => navigate({ pathname: id ? `/app/applications/${id}` : '/app/applications', search })
-
-  const requestedView = searchParams.get('view') || defaultViewId || ALL_VIEW
-  const activeView = tableViews.views.find(v => v.id === requestedView)
-  const activeId = activeView ? activeView.id : ALL_VIEW
-  const config = useMemo(() => normalizeConfig(activeView ? activeView.config : allConfig), [activeView, allConfig])
-  const { saveConfig } = tableViews
-  const setConfig = useCallback(patch => {
-    const next = normalizeConfig({ ...config, ...patch })
-    if (activeView) saveConfig(activeView.id, next)
-    else setAllConfig(next)
-  }, [config, activeView, saveConfig])
-
-  function selectView(id) {
-    const params = new URLSearchParams(search)
-    // With a default view set, "All applications" has to be explicit.
-    if (id === ALL_VIEW && !defaultViewId) params.delete('view'); else params.set('view', id)
-    const qs = params.toString()
-    navigate({ pathname: '/app/applications', search: qs ? `?${qs}` : '' })
-  }
-  async function createView(name, fromConfig = config) {
-    const row = await tableViews.create(name, fromConfig)
-    if (row) { if (!activeView) setAllConfig(DEFAULT_CONFIG); selectView(row.id) }
-  }
 
   async function addApplication() {
     const row = await add('applications', { company: '', position: '', location: '', status: 'applied', priority: 'medium' })
@@ -72,11 +53,6 @@ export default function ApplicationsPage() {
   const visibleColumns = config.columns.filter(c => c.visible).map(c => column(c.key))
   const shownApplications = useMemo(() => applyView(applications, config), [applications, config])
   const editingApp = editingAppId ? applications.find(a => a.id === editingAppId) : null
-  const viewsUnavailable = tableViews.status === 'unavailable' || tableViews.status === 'error'
-  // A link to a saved view waits for the views to load instead of flashing
-  // the wrong layout first.
-  const waitingForView = (requestedView !== ALL_VIEW && tableViews.status === 'loading')
-    || (!searchParams.get('view') && profileStatus === 'loading')
 
   // A link to an application that doesn't exist (deleted, or someone else's)
   // falls back to the list once the data has loaded.
@@ -90,40 +66,26 @@ export default function ApplicationsPage() {
         title="Applications"
         actions={<>
           <Button variant="ghost" icon="download" onClick={() => downloadCSV('applications.csv', toCSV(EXPORT_HEADERS, shownApplications))}>Export</Button>
-          <FilterBuilder filters={config.filters} onChange={filters => setConfig({ filters })} />
-          <ColumnsMenu columns={config.columns} onChange={columns => setConfig({ columns })} />
+          <CustomizeMenu
+            model={applicationsModel}
+            config={config}
+            onChange={setConfig}
+            onReset={views.reset}
+            canReset={!views.isDefaultLayout}
+            onSaveAs={views.viewsUnavailable ? null : name => views.createView(name)}
+            noun="applications"
+          />
           <Button variant="primary" icon="plus" onClick={addApplication}>Add application</Button>
         </>}
       />
 
-      <ViewTabs
-        views={tableViews.views}
-        activeId={activeId}
-        allDirty={!activeView && !sameConfig(allConfig, DEFAULT_CONFIG)}
-        disabled={viewsUnavailable || tableViews.status === 'loading'}
-        onSelect={selectView}
-        onCreate={name => createView(name)}
-        onRename={tableViews.rename}
-        onDuplicate={v => createView(`${v.name} copy`.slice(0, 60), normalizeConfig(v.config))}
-        onDelete={id => { tableViews.remove(id); if (id === activeId) selectView(ALL_VIEW) }}
-      />
-      {viewsUnavailable && <p className="views-note" role="status">Saved views aren't available right now. Changes to columns, sorting and filters last until you leave the page.</p>}
+      <ViewsBar state={views} allLabel="All applications" noun="applications" />
 
       <div className="sk-table-panel">
         <table className="sk-table">
           <thead>
             <tr>
-              {visibleColumns.map(col => {
-                const sorted = config.sort?.key === col.key ? config.sort.dir : null
-                return (
-                  <th key={col.key} scope="col" aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none'}>
-                    <button type="button" className={`sort-btn ${sorted ? 'is-sorted' : ''}`.trim()} onClick={() => setConfig({ sort: nextSort(config.sort, col.key) })}>
-                      {col.label}
-                      <span className="sort-icon" aria-hidden="true">{sorted ? <Icon name={sorted === 'asc' ? 'sort-asc' : 'sort-desc'} size={12} /> : null}</span>
-                    </button>
-                  </th>
-                )
-              })}
+              {visibleColumns.map(col => <SortHeader key={col.key} col={col} sort={config.sort} onSort={sort => setConfig({ sort })} />)}
               <th className="col-actions"><span className="sr-only">Delete</span></th>
             </tr>
           </thead>

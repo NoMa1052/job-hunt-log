@@ -1,13 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../../state/DataProvider'
 import { useProfile } from '../../state/ProfileProvider'
 import { toCSV, downloadCSV, formatShortDate } from '../../lib/format'
 import { sameCompany } from '../../lib/match'
-import { Button, ConfirmDialog, FilterPopover, IconButton } from '../../ui'
+import { Button, ConfirmDialog, IconButton } from '../../ui'
 import CollectionState from '../../components/CollectionState'
 import PageHeader from '../../components/PageHeader'
+import CustomizeMenu from '../views/CustomizeMenu'
+import SortHeader from '../views/SortHeader'
+import { ViewsBar } from '../views/ViewTabs'
+import useViewState from '../views/useViewState'
 import PersonPanel from './PersonPanel'
+import { peopleModel, withActivity } from './columns'
 
 const EXPORT_HEADERS = [
   { key: 'name', label: 'Person' }, { key: 'company', label: 'Company' },
@@ -15,14 +20,16 @@ const EXPORT_HEADERS = [
   { key: 'date', label: 'Conversation Date' }, { key: 'recommendation', label: 'Recommendation' }, { key: 'notes', label: 'Notes' }
 ]
 
+const dash = <span aria-label="None">—</span>
+
 export default function ConversationsPage() {
   const { data, add, update, remove, reload } = useData()
   const { profile } = useProfile()
-  const people = data.people.rows
   const entries = data.entries.rows
-
-  const [peopleFilters, setPeopleFilters] = useState({})
+  const people = useMemo(() => withActivity(data.people.rows, entries), [data.people.rows, entries])
   const [confirmId, setConfirmId] = useState(null)
+  const views = useViewState({ tableName: 'people', model: peopleModel, basePath: '/app/conversations' })
+  const { config, setConfig, waitingForView } = views
 
   // The open person lives in the URL, so reload, back and shared links work.
   const { personId } = useParams()
@@ -35,22 +42,11 @@ export default function ConversationsPage() {
     if (row) openPerson(row.id)
   }
   const updatePerson = (id, field, value) => update('people', id, field, value)
+  const entriesFor = id => entries.filter(e => e.person_id === id)
 
-  function passesPeopleFilters(p) {
-    const nameF = (peopleFilters.name || '').trim().toLowerCase()
-    const companyF = (peopleFilters.company || '').trim().toLowerCase()
-    if (nameF && !(p.name || '').toLowerCase().includes(nameF)) return false
-    if (companyF && !(p.company || '').toLowerCase().includes(companyF)) return false
-    return true
-  }
-  const entriesFor = personId => entries.filter(e => e.person_id === personId)
-  function lastContactFor(personId) {
-    const list = entriesFor(personId).map(e => e.date).filter(Boolean).sort()
-    return list.length ? list[list.length - 1] : null
-  }
-
-  const filteredPeople = people.filter(passesPeopleFilters)
-  const openedPerson = personId ? people.find(p => p.id === personId) : null
+  const visibleColumns = config.columns.filter(c => c.visible).map(c => peopleModel.column(c.key))
+  const shownPeople = useMemo(() => peopleModel.applyView(people, config), [people, config])
+  const openedPerson = personId ? data.people.rows.find(p => p.id === personId) : null
   const personCompany = openedPerson ? data.companies.rows.find(c => sameCompany(c.company, openedPerson.company)) : null
 
   // A link to a person that doesn't exist (deleted, or someone else's) falls
@@ -61,7 +57,7 @@ export default function ConversationsPage() {
 
   function exportConversations() {
     const rows = []
-    filteredPeople.forEach(p => {
+    shownPeople.forEach(p => {
       const personEntries = entriesFor(p.id)
       const base = { name: p.name, company: p.company, email: p.email, phone: p.phone, other_contact: p.other_contact }
       if (personEntries.length === 0) rows.push({ ...base, date: '', recommendation: '', notes: '' })
@@ -70,8 +66,13 @@ export default function ConversationsPage() {
     downloadCSV('conversations.csv', toCSV(EXPORT_HEADERS, rows))
   }
 
-  function filterHeader(key, label) {
-    return <FilterPopover label={label} value={peopleFilters[key]} onChange={v => setPeopleFilters(prev => ({ ...prev, [key]: v }))} />
+  function renderCell(col, p) {
+    switch (col.key) {
+      case 'name': return <td key="name" className="sk-cell-company">{p.name || <span className="cell-placeholder">Unnamed</span>}</td>
+      case 'last_contact': return <td key={col.key} className="sk-cell-meta">{p.last_contact ? formatShortDate(p.last_contact, undefined, profile.date_format) : dash}</td>
+      case 'talks': return <td key={col.key} className="sk-cell-meta center">{p.talks}</td>
+      default: return <td key={col.key} className="sk-cell-meta">{p[col.key] || dash}</td>
+    }
   }
 
   return (
@@ -80,50 +81,54 @@ export default function ConversationsPage() {
         title="Conversations"
         actions={<>
           <Button variant="ghost" icon="download" onClick={exportConversations}>Export</Button>
+          <CustomizeMenu
+            model={peopleModel}
+            config={config}
+            onChange={setConfig}
+            onReset={views.reset}
+            canReset={!views.isDefaultLayout}
+            onSaveAs={views.viewsUnavailable ? null : name => views.createView(name)}
+            noun="people"
+          />
           <Button variant="primary" icon="plus" onClick={addPerson}>Add person</Button>
         </>}
       />
+
+      <ViewsBar state={views} allLabel="All conversations" noun="conversations" />
 
       <div className="sk-table-panel">
         <table className="sk-table">
           <thead>
             <tr>
-              <th scope="col">{filterHeader('name', 'Person')}</th>
-              <th scope="col">{filterHeader('company', 'Company')}</th>
-              <th scope="col">Last contact</th>
-              <th scope="col" className="center">Talks</th>
+              {visibleColumns.map(col => <SortHeader key={col.key} col={col} sort={config.sort} onSort={sort => setConfig({ sort })} className={col.type === 'number' ? 'center' : undefined} />)}
               <th className="col-actions"><span className="sr-only">Delete</span></th>
             </tr>
           </thead>
           <tbody>
-            {filteredPeople.map(p => {
-              const last = lastContactFor(p.id)
-              return (
-                <tr
-                  key={p.id}
-                  className="row-link"
-                  tabIndex={0}
-                  aria-selected={personId === p.id}
-                  aria-label={`${p.name || 'Unnamed person'}${p.company ? `, ${p.company}` : ''}: open details`}
-                  onClick={e => { if (!e.target.closest('a, button')) openPerson(p.id) }}
-                  onKeyDown={e => {
-                    if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openPerson(p.id) }
-                  }}
-                >
-                  <td className="sk-cell-company">{p.name || <span className="cell-placeholder">Unnamed</span>}</td>
-                  <td className="sk-cell-meta">{p.company || '—'}</td>
-                  <td className="sk-cell-meta">{last ? formatShortDate(last, undefined, profile.date_format) : '—'}</td>
-                  <td className="sk-cell-meta center">{entriesFor(p.id).length}</td>
-                  <td className="col-actions"><IconButton icon="x" size="sm" label="Delete person" onClick={() => setConfirmId(p.id)} /></td>
-                </tr>
-              )
-            })}
+            {!waitingForView && shownPeople.map(p => (
+              <tr
+                key={p.id}
+                className="row-link"
+                tabIndex={0}
+                aria-selected={personId === p.id}
+                aria-label={`${p.name || 'Unnamed person'}${p.company ? `, ${p.company}` : ''}: open details`}
+                onClick={e => { if (!e.target.closest('a, button')) openPerson(p.id) }}
+                onKeyDown={e => {
+                  if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openPerson(p.id) }
+                }}
+              >
+                {visibleColumns.map(col => renderCell(col, p))}
+                <td className="col-actions"><IconButton icon="x" size="sm" label="Delete person" onClick={() => setConfirmId(p.id)} /></td>
+              </tr>
+            ))}
           </tbody>
         </table>
-        <CollectionState state={data.people} onRetry={() => { reload('people'); reload('entries') }}>
-          {filteredPeople.length === 0 && (
+        <CollectionState state={waitingForView ? { status: 'loading', rows: [] } : data.people} onRetry={() => { reload('people'); reload('entries') }}>
+          {shownPeople.length === 0 && (
             <div className="empty-state">
-              {people.length === 0 ? 'No conversations logged yet. Add a person above.' : 'Nothing matches the current filters.'}
+              {people.length === 0 ? 'No conversations logged yet. Add a person above.' : (
+                <>Nothing matches this view's filters. <Button variant="link" onClick={() => setConfig({ filters: [] })}>Clear filters</Button></>
+              )}
             </div>
           )}
         </CollectionState>
@@ -144,7 +149,7 @@ export default function ConversationsPage() {
       {confirmId && (
         <ConfirmDialog
           message="Are you sure you want to delete this? This can't be undone."
-          onConfirm={() => { remove('people', confirmId); setConfirmId(null) }}
+          onConfirm={() => { if (confirmId === personId) openPerson(null); remove('people', confirmId); setConfirmId(null) }}
           onCancel={() => setConfirmId(null)}
         />
       )}
