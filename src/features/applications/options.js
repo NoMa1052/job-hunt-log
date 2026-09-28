@@ -18,8 +18,8 @@ export const ALL_COLUMNS = [
   { key: 'position', label: 'Position', type: 'text' },
   { key: 'location', label: 'Location', type: 'text' },
   { key: 'date_applied', label: 'Applied', type: 'date' },
-  { key: 'status', label: 'Status', type: 'select', options: STATUS_OPTIONS },
-  { key: 'priority', label: 'Priority', type: 'select', options: PRIORITY_OPTIONS },
+  { key: 'status', label: 'Status', type: 'select', options: STATUS_OPTIONS, fallback: 'applied' },
+  { key: 'priority', label: 'Priority', type: 'select', options: PRIORITY_OPTIONS, fallback: 'medium' },
   { key: 'source', label: 'Source', type: 'text' },
   { key: 'salary', label: 'Salary', type: 'text' },
   { key: 'follow_up_date', label: 'Follow-up', type: 'date' },
@@ -56,7 +56,7 @@ export function passesFilters(app, filters) {
     } else if (col.type === 'select') {
       const allowed = filters[col.key]
       if (allowed && allowed.length < col.options.length) {
-        const val = app[col.key] || col.options[0].value
+        const val = app[col.key] || col.fallback
         if (!allowed.includes(val)) return false
       }
     }

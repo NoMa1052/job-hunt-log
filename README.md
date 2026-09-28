@@ -21,6 +21,12 @@ cp .env.example .env.local   # fill in the sidekick-dev URL + anon key
 npm run dev
 ```
 
+Before pushing, run the same checks as CI:
+
+```
+npm run check   # lint + tests + build
+```
+
 `.env*` files are git-ignored (except `.env.example`). Never commit real keys.
 
 ## Database

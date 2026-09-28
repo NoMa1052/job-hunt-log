@@ -39,5 +39,9 @@ function brandPlugin() {
 }
 
 export default defineConfig({
-  plugins: [react(), brandPlugin()]
+  plugins: [react(), brandPlugin()],
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/*.test.{js,jsx}'],
+  },
 })

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- the provider, its hook and its collection map belong together */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchAll, insertRow, updateRow, deleteRow } from '../lib/db'
 

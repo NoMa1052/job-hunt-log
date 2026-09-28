@@ -165,7 +165,7 @@ function renderAppCell(col, a, onUpdate) {
       return <DateCell key={col.key} value={a[col.key]} onChange={v => onUpdate(col.key, v)} />
     case 'status':
     case 'priority':
-      return <SelectCell key={col.key} label={col.label} options={col.options} value={a[col.key] || (col.key === 'status' ? 'applied' : 'medium')} onChange={v => onUpdate(col.key, v)} />
+      return <SelectCell key={col.key} label={col.label} options={col.options} value={a[col.key] || col.fallback} onChange={v => onUpdate(col.key, v)} />
     case 'letter': {
       const href = safeUrl(a.cover_letter_link)
       return (
