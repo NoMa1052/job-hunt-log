@@ -1,62 +1,60 @@
 // Design tokens: plain, platform-neutral values (no CSS, no DOM).
-// The web app mirrors them as CSS variables in src/styles/tokens.css (a test
-// keeps the two in sync); the Expo app can import this file directly.
+// The web app's source of truth is src/styles/sidekick.css; this file mirrors
+// its :root values (a test keeps them in sync) so the Expo app and the icon
+// generator can use them without CSS.
 
 export const color = {
-  ink: '#17191C', // text, dark surfaces
-  inkSoft: '#5C5F66',
-  inkFaint: '#9A9CA1',
-  paper: '#F7F4EE', // page background
-  paperSunken: '#EFEAE1',
-  card: '#FFFFFF', // cards sit on paper
-  border: 'rgba(23,25,28,0.08)',
-  borderStrong: 'rgba(23,25,28,0.16)',
-  teal: '#1F6F62', // primary accent, logo tile
-  tealDark: '#185A4F',
-  spark: '#F2A73B', // single highlight; use sparingly
-  overlay: 'rgba(23,25,28,0.45)',
-
-  // Status tones (semantic, not brand)
-  amber: '#8F631A',
-  amberBg: '#EFDDAE',
-  green: '#2F5C41',
-  greenBg: '#D2E3D6',
-  red: '#833B29',
-  redDark: '#6F3020',
-  redBg: '#EAD2C5',
-  blueBg: '#D7E1EA',
+  canvas: '#F4F5F9',
+  surface: '#FFFFFF',
+  surfaceSunken: '#ECEEF4',
+  line: '#DCDFE8',
+  lineStrong: '#8A8FA8',
+  ink: '#1C1E3A',
+  inkMuted: '#585D78',
+  indigo: '#2A2F6E',
+  indigoStrong: '#1F2358',
+  indigoTint: '#E7E8F5',
+  amber: '#F2A73B', // follow-up signal only
+  amberTint: '#FDF1DC',
+  amberInk: '#8A4B00',
+  statusAppliedBg: '#E7E8F5',
+  statusAppliedInk: '#2A2F6E',
+  statusInterviewBg: '#DDE9F8',
+  statusInterviewInk: '#1E4F86',
+  statusOfferBg: '#DCF0E4',
+  statusOfferInk: '#1B6340',
+  statusRejectedBg: '#F8E4E1',
+  statusRejectedInk: '#9B2F27',
+  statusClosedBg: '#ECEEF4',
+  statusClosedInk: '#585D78',
+  danger: '#9B2F27',
 }
 
 export const font = {
-  display: 'Fraunces', // wordmark and display headings, weight 600
-  ui: 'Space Grotesk', // UI and labels, weights 400/500/600
+  display: 'Fraunces', // wordmark and display numbers
+  sans: 'Instrument Sans', // UI text
 }
 
 export const fontStack = {
-  display: `'${font.display}', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif`,
-  ui: `'${font.ui}', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`,
+  display: '"Fraunces", Georgia, serif',
+  sans: '"Instrument Sans", system-ui, sans-serif',
 }
 
-export const fontWeight = { regular: 400, medium: 500, semibold: 600 }
+export const space = { 1: 4, 2: 8, 3: 12, 4: 16, 6: 24, 8: 32, 12: 48 }
 
-export const wordmark = { weight: 600, letterSpacing: '-0.01em' }
-
-export const radius = {
-  card: 20,
-  control: 10,
-  pill: 999,
-  tileRatio: 0.24, // logo tile corner radius as a fraction of tile size
-}
+export const radius = { sm: 6, md: 10, lg: 16, full: 999 }
 
 export const shadow = {
-  popover: '0 6px 18px rgba(23,25,28,0.12)',
-  modal: '0 20px 50px rgba(23,25,28,0.22)',
+  tab: '0 1px 2px rgba(28,30,58,0.10)',
+  pop: '0 8px 24px rgba(28,30,58,0.14)',
 }
 
-// Logo mark geometry (viewBox 0 0 120 120). Thicker stroke and larger dot at
-// favicon sizes so the mark stays legible.
+// Logo mark, matching src/assets/sidekick-mark.svg (viewBox 0 0 120 120).
+// Heavier stroke and larger dot at favicon sizes.
 export const mark = {
   viewBox: 120,
+  tileRadius: 28,
+  colors: { tile: '#2A2F6E', stroke: '#F7F4EE', dot: '#F2A73B' },
   path: 'M31 81 C31 45 59 45 59 61 C59 77 87 77 87 41',
   dot: { cx: 87, cy: 41 },
   regular: { strokeWidth: 16, dotRadius: 10 },

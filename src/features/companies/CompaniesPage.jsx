@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useData } from '../../state/DataProvider'
 import { safeUrl } from '../../lib/url'
 import { toCSV, downloadCSV, formatDate, formatDateTimeShort } from '../../lib/format'
-import { Button, Card, ConfirmDialog, EditableCell, Icon, IconButton, Input } from '../../ui'
+import { Button, ConfirmDialog, EditableCell, Icon, IconButton, Input } from '../../ui'
 import CollectionState from '../../components/CollectionState'
 import CompanyNotesModal from './CompanyNotesModal'
 
@@ -36,23 +36,23 @@ export default function CompaniesPage() {
   const notesCompany = notesCompanyId ? companies.find(c => c.id === notesCompanyId) : null
 
   return (
-    <Card as="section" aria-label="Companies">
-      <div className="panel-head">
-        <p className="panel-intro">Places you're watching, researching, or were pointed toward.</p>
-        <div className="panel-actions">
-          <Button icon="download" onClick={exportCompanies}>Export CSV</Button>
+    <section aria-label="Companies">
+      <div className="toolbar">
+        <p className="toolbar-intro">Places you're watching, researching, or were pointed toward.</p>
+        <div className="toolbar-actions">
+          <Button variant="ghost" icon="download" onClick={exportCompanies}>Export</Button>
           <Button variant="primary" icon="plus" onClick={() => add('companies', { company: '', careers_link: '' })}>Add company</Button>
         </div>
       </div>
-      <div className="table-wrap">
-        <table className="data">
+      <div className="sk-table-panel">
+        <table className="sk-table">
           <thead>
             <tr>
-              <th>Company</th>
-              <th>Careers link</th>
-              <th className="center">Applied</th>
-              <th>Last clicked</th>
-              <th>Notes</th>
+              <th scope="col">Company</th>
+              <th scope="col">Careers link</th>
+              <th scope="col" className="center">Applied</th>
+              <th scope="col">Last clicked</th>
+              <th scope="col">Notes</th>
               <th className="col-actions"><span className="sr-only">Delete</span></th>
             </tr>
           </thead>
@@ -62,19 +62,19 @@ export default function CompaniesPage() {
               const href = safeUrl(c.careers_link)
               return (
                 <tr key={c.id}>
-                  <EditableCell value={c.company} placeholder="Company" onSave={v => updateCompany(c.id, 'company', v)} />
+                  <EditableCell value={c.company} placeholder="Company" className="sk-cell-company" onSave={v => updateCompany(c.id, 'company', v)} />
                   <td>
                     <div className="link-field">
-                      <Input type="url" className="ui-input--sm" placeholder="paste careers page link" aria-label="Careers page link" defaultValue={c.careers_link || ''} onBlur={e => updateCompany(c.id, 'careers_link', e.target.value)} />
+                      <Input type="url" className="link-input" placeholder="paste careers page link" aria-label="Careers page link" defaultValue={c.careers_link || ''} onBlur={e => updateCompany(c.id, 'careers_link', e.target.value)} />
                       {href && (
                         <a className="icon-link" href={href} target="_blank" rel="noopener noreferrer" title="Open careers page" aria-label="Open careers page" onClick={() => updateCompany(c.id, 'last_clicked', new Date().toISOString())}><Icon name="external-link" /></a>
                       )}
                     </div>
                   </td>
-                  <td className="num center">{appliedCountFor(c.company)}</td>
-                  <td className="num">{formatDateTimeShort(c.last_clicked)}</td>
+                  <td className="sk-cell-meta center">{appliedCountFor(c.company)}</td>
+                  <td className="sk-cell-meta">{formatDateTimeShort(c.last_clicked)}</td>
                   <td>
-                    <Button size="sm" icon="notes" onClick={() => setNotesCompanyId(c.id)}>
+                    <Button variant="secondary" size="sm" icon="notes" onClick={() => setNotesCompanyId(c.id)}>
                       {noteCount > 0 ? `${noteCount} note${noteCount > 1 ? 's' : ''}` : 'Add note'}
                     </Button>
                   </td>
@@ -84,10 +84,10 @@ export default function CompaniesPage() {
             })}
           </tbody>
         </table>
+        <CollectionState state={data.companies} onRetry={() => { reload('companies'); reload('companyNotes') }}>
+          {companies.length === 0 && <div className="empty-state">No companies logged yet. Add one above.</div>}
+        </CollectionState>
       </div>
-      <CollectionState state={data.companies} onRetry={() => { reload('companies'); reload('companyNotes') }}>
-        {companies.length === 0 && <div className="empty-state">No companies logged yet. Add one above.</div>}
-      </CollectionState>
 
       {notesCompany && (
         <CompanyNotesModal
@@ -104,6 +104,6 @@ export default function CompaniesPage() {
           onCancel={() => setConfirmId(null)}
         />
       )}
-    </Card>
+    </section>
   )
 }

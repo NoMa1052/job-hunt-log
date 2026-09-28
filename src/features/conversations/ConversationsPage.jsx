@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useData } from '../../state/DataProvider'
-import { toCSV, downloadCSV } from '../../lib/format'
-import { Button, Card, ConfirmDialog, EditableActionCell, EditableCell, FilterPopover, IconButton } from '../../ui'
+import { toCSV, downloadCSV, formatShortDate } from '../../lib/format'
+import { Button, ConfirmDialog, EditableActionCell, EditableCell, FilterPopover, IconButton } from '../../ui'
 import CollectionState from '../../components/CollectionState'
 import ContactModal from './ContactModal'
 
@@ -58,22 +58,22 @@ export default function ConversationsPage() {
   }
 
   return (
-    <Card as="section" aria-label="Conversations">
-      <div className="panel-head">
-        <p className="panel-intro">Click a person's name to see contact info and every conversation you've logged with them.</p>
-        <div className="panel-actions">
-          <Button icon="download" onClick={exportConversations}>Export CSV</Button>
+    <section aria-label="Conversations">
+      <div className="toolbar">
+        <p className="toolbar-intro">Select a person's name to see contact info and every conversation you've logged with them.</p>
+        <div className="toolbar-actions">
+          <Button variant="ghost" icon="download" onClick={exportConversations}>Export</Button>
           <Button variant="primary" icon="plus" onClick={addPerson}>Add person</Button>
         </div>
       </div>
-      <div className="table-wrap">
-        <table className="data">
+      <div className="sk-table-panel">
+        <table className="sk-table">
           <thead>
             <tr>
-              <th>{filterHeader('name', 'Person')}</th>
-              <th>{filterHeader('company', 'Company')}</th>
-              <th>Last contact</th>
-              <th className="center">Talks</th>
+              <th scope="col">{filterHeader('name', 'Person')}</th>
+              <th scope="col">{filterHeader('company', 'Company')}</th>
+              <th scope="col">Last contact</th>
+              <th scope="col" className="center">Talks</th>
               <th className="col-actions"><span className="sr-only">Delete</span></th>
             </tr>
           </thead>
@@ -83,23 +83,23 @@ export default function ConversationsPage() {
               return (
                 <tr key={p.id}>
                   <EditableActionCell value={p.name} placeholder="Name" onSave={v => updatePerson(p.id, 'name', v)} onOpen={() => setContactPersonId(p.id)} />
-                  <EditableCell value={p.company} placeholder="Company" onSave={v => updatePerson(p.id, 'company', v)} />
-                  <td className="num">{last ? last : <span className="muted">—</span>}</td>
-                  <td className="num center">{entriesFor(p.id).length}</td>
+                  <EditableCell value={p.company} placeholder="Company" className="sk-cell-meta" onSave={v => updatePerson(p.id, 'company', v)} />
+                  <td className="sk-cell-meta">{last ? formatShortDate(last) : '—'}</td>
+                  <td className="sk-cell-meta center">{entriesFor(p.id).length}</td>
                   <td className="col-actions"><IconButton icon="x" size="sm" label="Delete person" onClick={() => setConfirmId(p.id)} /></td>
                 </tr>
               )
             })}
           </tbody>
         </table>
+        <CollectionState state={data.people} onRetry={() => { reload('people'); reload('entries') }}>
+          {filteredPeople.length === 0 && (
+            <div className="empty-state">
+              {people.length === 0 ? 'No conversations logged yet. Add a person above.' : 'Nothing matches the current filters.'}
+            </div>
+          )}
+        </CollectionState>
       </div>
-      <CollectionState state={data.people} onRetry={() => { reload('people'); reload('entries') }}>
-        {filteredPeople.length === 0 && (
-          <div className="empty-state">
-            {people.length === 0 ? 'No conversations logged yet. Add a person above.' : 'Nothing matches the current filters.'}
-          </div>
-        )}
-      </CollectionState>
 
       {contactPerson && (
         <ContactModal
@@ -117,6 +117,6 @@ export default function ConversationsPage() {
           onCancel={() => setConfirmId(null)}
         />
       )}
-    </Card>
+    </section>
   )
 }

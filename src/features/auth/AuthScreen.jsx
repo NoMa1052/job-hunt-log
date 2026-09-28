@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import brand from '../../config/brand'
-import { Button, Card, Field, Input, Logo } from '../../ui'
+import { Button, Card, Field, Input } from '../../ui'
+import markUrl from '../../assets/sidekick-mark.svg'
 
 const SUBTITLES = {
   signin: 'Sign in to your tracker',
@@ -25,7 +26,11 @@ export default function AuthScreen() {
     const origin = window.location.origin
     if (mode === 'signin') {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) setError(error.message)
+      if (error) {
+        setError(/invalid login credentials/i.test(error.message)
+          ? "That email and password don't match. Check both and try again, or reset your password."
+          : error.message)
+      }
     } else if (mode === 'signup') {
       // The confirmation email links back to this deployment, not a fixed URL.
       const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${origin}/app` } })
@@ -46,14 +51,16 @@ export default function AuthScreen() {
     <main className="auth-page">
       <Card className="auth-card">
         <div className="auth-head">
-          <Logo variant="light" size={44} wordmark={brand.wordmark} />
-          <h1 className="sr-only">{brand.name}</h1>
+          <div className="sk-brand">
+            <img className="sk-brand__mark" src={markUrl} alt="" width="36" height="36" />
+            <h1 className="sk-brand__name">{brand.wordmark}</h1>
+          </div>
           <p className="auth-sub">{SUBTITLES[mode]}</p>
         </div>
         <form onSubmit={submit} className="auth-form">
           <Field label="Email"><Input type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} /></Field>
           {mode !== 'forgot' && (
-            <Field label="Password"><Input type="password" autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} required minLength={6} value={password} onChange={e => setPassword(e.target.value)} /></Field>
+            <Field label="Password" hint={mode === 'signup' ? 'At least 6 characters.' : undefined}><Input type="password" autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} required minLength={6} value={password} onChange={e => setPassword(e.target.value)} /></Field>
           )}
           {error && <p className="auth-msg error" role="alert">{error}</p>}
           {info && <p className="auth-msg info">{info}</p>}

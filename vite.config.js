@@ -9,8 +9,8 @@ const manifest = JSON.stringify({
   description: brand.description,
   start_url: '/app',
   display: 'standalone',
-  background_color: color.paper,
-  theme_color: color.paper,
+  background_color: color.canvas,
+  theme_color: color.canvas,
   icons: [
     { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
     { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },

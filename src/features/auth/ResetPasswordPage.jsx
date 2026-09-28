@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseClient'
 import brand from '../../config/brand'
-import { Button, Card, Field, Input, Logo } from '../../ui'
+import { Button, Card, Field, Input } from '../../ui'
+import markUrl from '../../assets/sidekick-mark.svg'
 
 // Landing page for the emailed reset link. Supabase signs the user in from
 // the link (a short-lived recovery session); here they choose a new password.
@@ -12,13 +13,15 @@ export default function ResetPasswordPage({ session, onDone }) {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
+  const [mismatch, setMismatch] = useState(false)
   const [done, setDone] = useState(false)
   const [loading, setLoading] = useState(false)
 
   async function submit(e) {
     e.preventDefault()
     setError('')
-    if (password !== confirm) { setError("Passwords don't match."); return }
+    setMismatch(password !== confirm)
+    if (password !== confirm) return
     setLoading(true)
     const { error } = await supabase.auth.updateUser({ password })
     setLoading(false)
@@ -31,8 +34,10 @@ export default function ResetPasswordPage({ session, onDone }) {
     <main className="auth-page">
       <Card className="auth-card">
         <div className="auth-head">
-          <Logo variant="light" size={44} wordmark={brand.wordmark} />
-          <h1 className="sr-only">{brand.name}: reset password</h1>
+          <div className="sk-brand">
+            <img className="sk-brand__mark" src={markUrl} alt="" width="36" height="36" />
+            <h1 className="sk-brand__name">{brand.wordmark}<span className="sr-only">: reset password</span></h1>
+          </div>
           <p className="auth-sub">{done ? 'Password updated' : 'Choose a new password'}</p>
         </div>
 
@@ -52,9 +57,12 @@ export default function ResetPasswordPage({ session, onDone }) {
 
         {session && !done && (
           <form onSubmit={submit} className="auth-form">
-            <Field label="New password"><Input type="password" autoComplete="new-password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)} /></Field>
-            <Field label="Confirm new password"><Input type="password" autoComplete="new-password" required minLength={6} value={confirm} onChange={e => setConfirm(e.target.value)} /></Field>
-            {error && <p className="auth-msg error" role="alert">{error}</p>}
+            <Field label="New password" hint="At least 6 characters." error={error ? `${error} Try a different password.` : undefined}>
+              <Input type="password" autoComplete="new-password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)} aria-invalid={Boolean(error)} />
+            </Field>
+            <Field label="Confirm new password" error={mismatch ? "Passwords don't match. Type the same password in both fields." : undefined}>
+              <Input type="password" autoComplete="new-password" required minLength={6} value={confirm} onChange={e => { setConfirm(e.target.value); setMismatch(false) }} aria-invalid={mismatch} />
+            </Field>
             <Button variant="primary" type="submit" disabled={loading}>{loading ? 'Please wait…' : 'Update password'}</Button>
           </form>
         )}
