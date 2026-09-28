@@ -54,6 +54,10 @@ Other tables:
 - `profiles`: one row per user (first and last name, target roles, location, bio, date format; `full_name` is kept in sync for older clients), created on first save, own row only. `default_view_id` is the older Applications-only default, kept for compatibility; the app now uses `table_views.is_default`.
 - `delete_my_account()`: a function signed-in users call to delete their own account. Every user table cascades from `auth.users`, so all of their data goes with it. It can only ever delete the caller; signed-out requests can't run it.
 
+- `resumes`: a user's resumes, stored as structured sections (`content` jsonb) so AI can edit one part at a time. `is_default` marks the one AI uses by default (at most one per user). A tailored copy has `application_id` (the job it's for) and `parent_resume_id` (the resume it came from). Uploaded files live in the private `resumes` storage bucket under `{user_id}/`.
+- `resume_matches` and `ai_usage`: match results and a log of AI calls (for monthly limits). Only the `resume-ai` Edge Function writes them; users can read their own.
+- `applications.job_description`, `cover_letter` and `resume_id` hold the posting, the cover letter draft and the resume used for that job. `profiles.plan` is `free` or `pro`; signed-in users can't change it.
+
 The `archive` schema (not exposed by the API) keeps deprecated data that was moved out of `public` instead of deleted: the old `conversations_legacy` table and the old `companies.notes` column.
 
 `supabase/legacy/` holds the historical, hand-applied SQL that built the original schema. It's kept for reference only and doesn't match production; don't run it.
@@ -68,3 +72,14 @@ Sign-up confirmation and password-reset emails link back to the site the user is
 ## Deploying
 
 Vercel builds on every push. Merges to `main` deploy to production at https://sidekickhq.vercel.app. The old address, `myjobhuntlog.vercel.app`, permanently redirects (308) to the same path on the new one.
+
+## Resume Studio (AI)
+
+AI features run in the `resume-ai` Edge Function (`supabase/functions/resume-ai`), never in the browser. It needs the `ANTHROPIC_API_KEY` secret (optional: `ANTHROPIC_MODEL`) on each Supabase project, and enforces monthly limits per plan (see `LIMITS` in the function). The Resumes tab and the application panel's resume section only appear once the migration is applied, so the frontend can ship before the database.
+
+```
+npx supabase secrets set ANTHROPIC_API_KEY=... --project-ref <project-ref>
+npx supabase functions deploy resume-ai --project-ref <project-ref>
+```
+
+To try Pro features on `sidekick-dev`, run in its SQL editor: `update profiles set plan = 'pro' where user_id = '<user id>';`
