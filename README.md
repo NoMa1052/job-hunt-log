@@ -25,7 +25,7 @@ npm run dev
 
 ## Database
 
-All user tables (`applications`, `companies`, `company_notes`, `people`, `conversation_entries`) have a `user_id` column and RLS policies that limit each user to their own rows. The client never filters by `user_id` itself; it relies on RLS and on the `user_id default auth.uid()` column default.
+All user tables (`applications`, `companies`, `company_notes`, `people`, `conversation_entries`) have a required `user_id` column (deleting a user deletes their rows) and RLS policies that limit each signed-in user to their own rows. Conversation entries and company notes can only point at a person or company the same user owns. The client never filters by `user_id` itself; it relies on RLS and on the `user_id default auth.uid()` column default.
 
 Schema changes go in as migration files in `supabase/migrations/`, applied to `sidekick-dev` first and to production only after review. Never edit either database directly. Every migration must be safe to run on production, on `sidekick-dev` and on an empty database.
 
@@ -39,6 +39,8 @@ npx supabase db push
 ```
 
 If `migration list` shows a local migration older than the newest remote one, `db push` needs `--include-all`. Migrations are written to be idempotent so that this is safe.
+
+The `archive` schema (not exposed by the API) keeps deprecated data that was moved out of `public` instead of deleted: the old `conversations_legacy` table and the old `companies.notes` column.
 
 `supabase/legacy/` holds the historical, hand-applied SQL that built the original schema. It's kept for reference only and doesn't match production; don't run it.
 
