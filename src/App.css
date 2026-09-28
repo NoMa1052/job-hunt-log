@@ -107,6 +107,8 @@ h1 span {
   border-radius: var(--radius) var(--radius) 0 0;
 }
 
+a.tab { display: inline-block; text-decoration: none; }
+
 .tab.active {
   background: var(--paper-raised);
   color: var(--ink);
