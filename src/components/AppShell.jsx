@@ -15,7 +15,7 @@ const SECTIONS = [
 export default function AppShell() {
   // Resumes shows up once its migration is applied to this database.
   const resumesAvailable = useResumesAvailable()
-  const sections = resumesAvailable ? [...SECTIONS, { path: 'resumes', label: 'Resumes' }] : SECTIONS
+  const sections = resumesAvailable ? [...SECTIONS, { path: 'resumes', label: 'Resumes', badge: 'New', accent: true }] : SECTIONS
   return (
     <div className="sk-app app">
       <header className="topbar">
@@ -26,7 +26,10 @@ export default function AppShell() {
           </div>
           <nav className="topnav" aria-label="Sections">
             {sections.map(s => (
-              <NavLink key={s.path} to={s.path} className="topnav-link">{s.label}</NavLink>
+              <NavLink key={s.path} to={s.path} className={`topnav-link${s.accent ? ' topnav-link--accent' : ''}`}>
+                {s.label}
+                {s.badge && <span className="topnav-badge">{s.badge}</span>}
+              </NavLink>
             ))}
           </nav>
         </div>
