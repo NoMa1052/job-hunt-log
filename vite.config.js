@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import brand from './src/config/brand.js'
 import { color } from './src/ui/tokens.js'
+import { previewSupabase } from './src/config/previewSupabase.js'
 
 const manifest = JSON.stringify({
   name: brand.name,
@@ -38,8 +39,17 @@ function brandPlugin() {
   }
 }
 
+// Previews are pinned to the dev database; production and local builds use their env vars.
+const previewDefines = process.env.VERCEL_ENV === 'preview'
+  ? {
+      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(previewSupabase.url),
+      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(previewSupabase.anonKey),
+    }
+  : {}
+
 export default defineConfig({
   plugins: [react(), brandPlugin()],
+  define: previewDefines,
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.{js,jsx}'],
