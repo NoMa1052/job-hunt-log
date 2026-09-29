@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { safeUrl } from '../lib/url'
-import { Button, Field, Icon, Input } from '../ui'
+import { Button, Field, Icon, IconButton, Input } from '../ui'
 
 // A saved link shows as a button that opens it; empty ones start as "+ Add".
 export default function LinkField({ def, value, onSave, onOpen }) {
@@ -26,11 +26,11 @@ export default function LinkField({ def, value, onSave, onOpen }) {
   }
   return (
     <div className="panel-link">
-      <a className="sk-btn sk-btn--secondary" href={href} target="_blank" rel="noopener noreferrer" onClick={onOpen}>
+      <a className="sk-btn sk-btn--secondary panel-link-open" href={href} target="_blank" rel="noopener noreferrer" onClick={onOpen}>
         <Icon name="external-link" />
         {def.open || `Open ${def.label.toLowerCase()}`}
       </a>
-      <Button variant="ghost" size="sm" onClick={() => setEditing(true)} aria-label={`Edit ${def.label.toLowerCase()} link`}>Edit</Button>
+      <IconButton icon="pencil" className="panel-link-edit" label={`Edit ${def.label.toLowerCase()} link`} onClick={() => setEditing(true)} />
     </div>
   )
 }

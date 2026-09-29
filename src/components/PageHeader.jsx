@@ -2,7 +2,8 @@ import { useData } from '../state/DataProvider'
 import { followUpsDue, statusCounts } from '../features/applications/options'
 
 // Section heading, the application summary line and the section's actions.
-export default function PageHeader({ title, actions }) {
+// mobileActions (see MobileActions) replaces `actions` on phones.
+export default function PageHeader({ title, actions, mobileActions }) {
   const { data } = useData()
   const applications = data.applications.rows
   const counts = statusCounts(applications)
@@ -23,7 +24,8 @@ export default function PageHeader({ title, actions }) {
           )}
         </p>
       </div>
-      {actions && <div className="page-actions">{actions}</div>}
+      {actions && <div className={`page-actions${mobileActions ? ' page-actions--desktop' : ''}`}>{actions}</div>}
+      {mobileActions}
     </div>
   )
 }

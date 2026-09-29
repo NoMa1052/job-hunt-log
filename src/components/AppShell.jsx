@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { useEffect } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import brand from '../config/brand'
 import SaveStatus from './SaveStatus'
 import UndoToast from './UndoToast'
@@ -15,6 +16,11 @@ const SECTIONS = [
 export default function AppShell() {
   // Resumes shows up once its migration is applied to this database.
   const resumesAvailable = useResumesAvailable()
+  const { pathname } = useLocation()
+  // On phones the section tabs scroll sideways; keep the current one in view.
+  useEffect(() => {
+    document.querySelector('.topnav [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [pathname, resumesAvailable])
   const sections = resumesAvailable ? [...SECTIONS, { path: 'resumes', label: 'Resumes', badge: 'New', accent: true }] : SECTIONS
   return (
     <div className="sk-app app">

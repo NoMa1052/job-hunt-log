@@ -7,7 +7,9 @@ import { toCSV, downloadCSV, formatDate, formatDateTimeShort } from '../../lib/f
 import { Button, Icon, IconButton } from '../../ui'
 import CollectionState from '../../components/CollectionState'
 import useDeleteConfirm from '../../components/useDeleteConfirm'
+import MobileActions from '../../components/MobileActions'
 import PageHeader from '../../components/PageHeader'
+import RecordCard from '../../components/RecordCard'
 import CustomizeMenu from '../views/CustomizeMenu'
 import SortHeader from '../views/SortHeader'
 import { ViewsBar } from '../views/ViewTabs'
@@ -28,6 +30,15 @@ export default function CompaniesPage() {
   const deletion = useDeleteConfirm()
   const views = useViewState({ tableName: 'companies', model: companiesModel, basePath: '/app/companies' })
   const { config, setConfig, waitingForView } = views
+  const customize = {
+    model: companiesModel,
+    config,
+    onChange: setConfig,
+    onReset: views.reset,
+    canReset: !views.isDefaultLayout,
+    onSaveAs: views.viewsUnavailable ? null : name => views.createView(name),
+    noun: 'companies',
+  }
 
   // The open company lives in the URL, so reload, back and shared links work.
   const { companyId } = useParams()
@@ -102,17 +113,16 @@ export default function CompaniesPage() {
         title="Companies"
         actions={<>
           <Button variant="ghost" icon="download" onClick={exportCompanies}>Export</Button>
-          <CustomizeMenu
-            model={companiesModel}
-            config={config}
-            onChange={setConfig}
-            onReset={views.reset}
-            canReset={!views.isDefaultLayout}
-            onSaveAs={views.viewsUnavailable ? null : name => views.createView(name)}
-            noun="companies"
-          />
+          <CustomizeMenu {...customize} />
           <Button variant="primary" icon="plus" onClick={addCompany}>Add company</Button>
         </>}
+        mobileActions={
+          <MobileActions
+            primary={<Button variant="primary" icon="plus" onClick={addCompany}>Add company</Button>}
+            customize={customize}
+            items={[{ label: 'Export', onSelect: exportCompanies }]}
+          />
+        }
       />
 
       <ViewsBar state={views} allLabel="All companies" noun="companies" />
@@ -144,6 +154,27 @@ export default function CompaniesPage() {
             ))}
           </tbody>
         </table>
+        {!waitingForView && shownCompanies.length > 0 && (
+          <ul className="card-list" aria-label="Companies">
+            {shownCompanies.map(c => {
+              const href = safeUrl(c.careers_link)
+              const meta = [c.notes && (c.notes === 1 ? '1 note' : `${c.notes} notes`), c.last_clicked && `Opened ${formatDateTimeShort(c.last_clicked)}`].filter(Boolean).join(' · ')
+              return (
+                <RecordCard
+                  key={c.id}
+                  label={`${c.company || 'Unnamed company'}: open details`}
+                  selected={companyId === c.id}
+                  onOpen={() => openCompany(c.id)}
+                  title={c.company || 'Unnamed'}
+                  aside={<span className="record-card-count">{`${c.applied} applied`}</span>}
+                  body={href ? new URL(href).hostname.replace(/^www\./, '') : 'No careers link yet'}
+                  meta={meta || (c.people ? '' : 'No notes yet')}
+                  end={c.people > 0 && <span className="record-card-count">{c.people === 1 ? '1 person' : `${c.people} people`}</span>}
+                />
+              )
+            })}
+          </ul>
+        )}
         <CollectionState state={waitingForView ? { status: 'loading', rows: [] } : data.companies} onRetry={() => { reload('companies'); reload('companyNotes') }}>
           {shownCompanies.length === 0 && (
             <div className="empty-state">

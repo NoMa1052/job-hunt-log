@@ -25,13 +25,14 @@ export default function CustomizeMenu({ model, config, onChange, onReset, canRes
       )}
     >
       {({ close }) => (
-        <Panel model={model} config={config} onChange={onChange} onReset={onReset} canReset={canReset} onSaveAs={onSaveAs} noun={noun} close={close} />
+        <CustomizePanel model={model} config={config} onChange={onChange} onReset={onReset} canReset={canReset} onSaveAs={onSaveAs} noun={noun} close={close} />
       )}
     </Popover>
   )
 }
 
-function Panel({ model, config, onChange, onReset, canReset, onSaveAs, noun, close }) {
+// The panel itself; also shown in a bottom sheet from the mobile "More" menu.
+export function CustomizePanel({ model, config, onChange, onReset, canReset, onSaveAs, noun, close }) {
   const [saving, setSaving] = useState(false)
   return (
     <div className="customize" role="group" aria-label="Customize">
