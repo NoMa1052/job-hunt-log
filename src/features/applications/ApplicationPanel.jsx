@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import LinkField from '../../components/LinkField'
 import PanelDelete from '../../components/PanelDelete'
+import ApplicationAiSection from '../resumes/ApplicationAiSection'
 import { Button, Chip, Field, FollowUp, Input, Popover, SidePanel, TextArea } from '../../ui'
 import { PRIORITY_OPTIONS, STATUS_OPTIONS, followUp, optionLabel, statusChip } from './options'
 
@@ -107,6 +108,9 @@ export default function ApplicationPanel({ app, onUpdate, onDelete, onClose }) {
           )}
         </section>
       )}
+
+      {/* Only when the Resume Studio migration is applied (the columns exist). */}
+      {'job_description' in app && <ApplicationAiSection app={app} onUpdate={onUpdate} />}
 
       <section className="panel-section panel-notes">
         <Field label="Notes">

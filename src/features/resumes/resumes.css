@@ -1,0 +1,120 @@
+/* Resume Studio. Uses the design tokens from src/styles/sidekick.css.
+   All classes are prefixed rs- so nothing here touches existing styles. */
+
+.rs-page { display: flex; flex-direction: column; gap: var(--space-4); max-width: 880px; }
+.rs-editor { padding-bottom: var(--space-12); }
+
+.rs-card { display: flex; flex-direction: column; gap: var(--space-4); }
+.rs-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.rs-card-title { margin: 0; font-size: 17px; line-height: 24px; font-weight: 600; }
+.rs-card-desc { margin: var(--space-1) 0 0; font-size: 14px; line-height: 20px; color: var(--ink-muted); max-width: 62ch; }
+.rs-section-title { margin: var(--space-4) 0 0; font-size: 15px; line-height: 22px; font-weight: 600; }
+.rs-subtitle { margin: var(--space-4) 0 var(--space-2); font-size: 13px; line-height: 18px; font-weight: 600; color: var(--ink-muted); }
+
+.rs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-3) var(--space-4); }
+.rs-grid--pair { grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.rs-textarea { height: auto; padding: 10px 12px; resize: vertical; line-height: 22px; }
+
+.rs-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.rs-actions--letter { margin-top: var(--space-2); }
+.rs-tone { width: auto; height: 30px; font-size: 13px; padding: 0 8px; }
+.rs-remove { color: var(--danger); }
+.rs-remove:hover:not(:disabled) { background: var(--status-rejected-bg); }
+.rs-gap { margin-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+
+.rs-muted { margin: 0; font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.rs-error { margin: var(--space-3) 0 0; font-size: 14px; line-height: 20px; color: var(--danger); }
+.rs-status { margin: var(--space-3) 0 0; font-size: 14px; line-height: 20px; color: var(--indigo); }
+.rs-page > .rs-error, .rs-page > .rs-status { margin: 0; }
+
+.rs-back { font-size: 13px; line-height: 18px; color: var(--ink-muted); text-decoration: none; }
+.rs-back::before { content: "‹ "; }
+.rs-back:hover { color: var(--indigo); }
+.rs-editor .title-input { min-width: min(420px, 100%); }
+
+/* Resume list */
+.rs-list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; }
+.rs-row { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3) var(--space-2) var(--space-2); }
+.rs-row + .rs-row { border-top: 1px solid var(--line); }
+.rs-row:hover { background: var(--canvas); }
+.rs-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) var(--space-3); border: 0; border-radius: var(--radius-sm); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.rs-row-main:focus-visible { outline: 2px solid var(--indigo); outline-offset: -2px; }
+.rs-row-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-row-meta { font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.rs-row-actions { display: flex; align-items: center; gap: var(--space-1); flex: none; }
+.rs-empty { display: flex; flex-direction: column; gap: var(--space-3); }
+.rs-empty .rs-actions { margin-top: var(--space-2); }
+
+/* Editor entries and AI suggestions */
+.rs-entry { display: flex; flex-direction: column; gap: var(--space-3); padding-top: var(--space-4); border-top: 1px solid var(--line); }
+.rs-card-head + .rs-entry, .rs-card-head + .rs-muted + .rs-entry { border-top: 0; padding-top: 0; }
+.rs-suggestion { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4); background: var(--indigo-tint); border-left: 3px solid var(--amber); border-radius: 0 var(--radius-md) var(--radius-md) 0; font-size: 14px; line-height: 21px; }
+.rs-suggestion p, .rs-suggestion ul { margin: 0; }
+.rs-suggestion ul { padding-left: 18px; }
+.rs-suggestion-title { font-size: 13px; font-weight: 600; color: var(--indigo); }
+.rs-notes { font-size: 13px; color: var(--ink-muted); }
+
+/* Match score: the one bold element. A ring filled to the score. */
+.rs-match { display: flex; align-items: flex-start; gap: var(--space-4); margin-top: var(--space-4); }
+.rs-match-body { flex: 1; min-width: 0; font-size: 14px; line-height: 21px; }
+.rs-match-body p { margin: 0; }
+.rs-score {
+  --band: var(--amber);
+  flex: none; width: 88px; height: 88px; border-radius: 50%;
+  display: grid; place-content: center; text-align: center;
+  background:
+    radial-gradient(closest-side, var(--surface) 80%, transparent 81%),
+    conic-gradient(var(--band) calc(var(--score) * 1%), var(--surface-sunken) 0);
+}
+.rs-score--strong { --band: var(--status-offer-ink); }
+.rs-score--weak { --band: var(--status-rejected-ink); }
+.rs-score-num { font-family: var(--font-display); font-size: 30px; line-height: 32px; font-weight: 600; font-variant-numeric: lining-nums tabular-nums; }
+.rs-score-label { font-size: 12px; line-height: 16px; color: var(--ink-muted); }
+
+.rs-keywords { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.rs-keywords li { font-size: 12px; line-height: 16px; font-weight: 600; padding: 4px 10px; border-radius: var(--radius-full); background: var(--amber-tint); color: var(--amber-ink); }
+.rs-plain { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: var(--space-1); font-size: 14px; line-height: 21px; }
+.rs-rewrites { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.rs-rewrites li { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.rs-rewrites p { margin: 0; font-size: 14px; line-height: 21px; }
+.rs-before { color: var(--ink-muted); text-decoration: line-through; text-decoration-color: var(--line-strong); }
+.rs-after { font-weight: 500; }
+
+/* Insights */
+.rs-bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.rs-bars li { display: grid; grid-template-columns: minmax(140px, 1fr) 2fr 32px; gap: var(--space-3); align-items: center; font-size: 14px; line-height: 20px; }
+.rs-bar-label { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.rs-bar-flag { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--amber-ink); }
+.rs-bar-track { height: 8px; border-radius: var(--radius-full); background: var(--surface-sunken); overflow: hidden; }
+.rs-bar-fill { display: block; height: 100%; background: var(--indigo); border-radius: var(--radius-full); }
+.rs-bar--missing .rs-bar-fill { background: var(--amber); }
+.rs-bar-count { text-align: right; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 720px) {
+  .rs-row { flex-wrap: wrap; }
+  .rs-row-main { flex-basis: 100%; }
+  .rs-row-actions { padding-left: var(--space-3); }
+  .rs-bars li { grid-template-columns: 1fr 1fr 28px; }
+  .rs-match { flex-direction: column; }
+}
+
+/* PDF export: only the resume prints. */
+.rs-print { display: none; }
+@media print {
+  body.rs-printing > *:not(.rs-print) { display: none !important; }
+  body.rs-printing { background: #fff; }
+  body.rs-printing .rs-print {
+    display: block; color: #000;
+    font-family: Georgia, "Times New Roman", serif; font-size: 10.5pt; line-height: 1.4;
+  }
+  @page { margin: 0.6in; }
+  .rs-print h1 { margin: 0 0 2pt; font-size: 20pt; font-weight: 700; }
+  .rs-print-contact { margin: 0 0 10pt; font-size: 9.5pt; }
+  .rs-print h2 { margin: 12pt 0 4pt; padding-bottom: 2pt; border-bottom: 1px solid #000; font-size: 11pt; font-weight: 700; }
+  .rs-print p { margin: 0 0 4pt; }
+  .rs-print ul { margin: 2pt 0 0; padding-left: 14pt; }
+  .rs-print li { margin-bottom: 1.5pt; }
+  .rs-print-entry { margin-bottom: 8pt; break-inside: avoid; }
+  .rs-print-row { display: flex; justify-content: space-between; gap: 12pt; }
+  .rs-print-sub { font-style: italic; }
+}

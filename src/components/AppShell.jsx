@@ -4,6 +4,7 @@ import SaveStatus from './SaveStatus'
 import UndoToast from './UndoToast'
 import SidekickLogo from './SidekickLogo'
 import UserMenu from './UserMenu'
+import { useResumesAvailable } from '../features/resumes/api'
 
 const SECTIONS = [
   { path: 'applications', label: 'Applications' },
@@ -12,6 +13,9 @@ const SECTIONS = [
 ]
 
 export default function AppShell() {
+  // Resumes shows up once its migration is applied to this database.
+  const resumesAvailable = useResumesAvailable()
+  const sections = resumesAvailable ? [...SECTIONS, { path: 'resumes', label: 'Resumes' }] : SECTIONS
   return (
     <div className="sk-app app">
       <header className="topbar">
@@ -21,7 +25,7 @@ export default function AppShell() {
             <span className="sk-brand__name">{brand.wordmark}</span>
           </div>
           <nav className="topnav" aria-label="Sections">
-            {SECTIONS.map(s => (
+            {sections.map(s => (
               <NavLink key={s.path} to={s.path} className="topnav-link">{s.label}</NavLink>
             ))}
           </nav>

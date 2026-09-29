@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { supabase } from './lib/supabaseClient'
 import { DataProvider } from './state/DataProvider'
@@ -13,6 +13,9 @@ import ResetPasswordPage from './features/auth/ResetPasswordPage'
 import ApplicationsPage from './features/applications/ApplicationsPage'
 import ConversationsPage from './features/conversations/ConversationsPage'
 import CompaniesPage from './features/companies/CompaniesPage'
+
+// Loaded on first visit to keep the main bundle small.
+const ResumesPage = lazy(() => import('./features/resumes/ResumesPage'))
 
 export default function App() {
   const [session, setSession] = useState(undefined)
@@ -58,6 +61,7 @@ function AppRoutes({ session, recovering, setRecovering, onLoaded }) {
               <Route path="applications/:appId?" element={<ApplicationsPage />} />
               <Route path="conversations/:personId?" element={<ConversationsPage />} />
               <Route path="companies/:companyId?" element={<CompaniesPage />} />
+              <Route path="resumes/:resumeId?" element={<Suspense fallback={<div className="empty-state">Loading…</div>}><ResumesPage /></Suspense>} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/app/applications" replace />} />
