@@ -5,6 +5,7 @@ import { formatShortDate } from '../../lib/format'
 import { useData } from '../../state/DataProvider'
 import { useProfile } from '../../state/ProfileProvider'
 import { useUser } from '../../state/UserContext'
+import MobileActions from '../../components/MobileActions'
 import PageHeader from '../../components/PageHeader'
 import { Badge, Button, Card, ConfirmDialog, IconButton } from '../../ui'
 import { errorMessage, listResumes, resumeAi, useResumesAvailable } from './api'
@@ -153,6 +154,12 @@ function ResumeList() {
           <Button variant="primary" icon="plus" onClick={createBlank} disabled={!!busy}>New resume</Button>
           <input ref={fileRef} type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden onChange={e => importFile(e.target.files?.[0])} />
         </>}
+        mobileActions={
+          <MobileActions
+            primary={<Button variant="primary" icon="plus" onClick={createBlank} disabled={!!busy}>New resume</Button>}
+            items={[{ label: 'Import resume', onSelect: () => fileRef.current?.click() }]}
+          />
+        }
       />
 
       {shownUsage && (

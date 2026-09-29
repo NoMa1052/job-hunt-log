@@ -7,7 +7,9 @@ import { sameCompany } from '../../lib/match'
 import { Button, IconButton } from '../../ui'
 import CollectionState from '../../components/CollectionState'
 import useDeleteConfirm from '../../components/useDeleteConfirm'
+import MobileActions from '../../components/MobileActions'
 import PageHeader from '../../components/PageHeader'
+import RecordCard from '../../components/RecordCard'
 import CustomizeMenu from '../views/CustomizeMenu'
 import SortHeader from '../views/SortHeader'
 import { ViewsBar } from '../views/ViewTabs'
@@ -31,6 +33,15 @@ export default function ConversationsPage() {
   const deletion = useDeleteConfirm()
   const views = useViewState({ tableName: 'people', model: peopleModel, basePath: '/app/conversations' })
   const { config, setConfig, waitingForView } = views
+  const customize = {
+    model: peopleModel,
+    config,
+    onChange: setConfig,
+    onReset: views.reset,
+    canReset: !views.isDefaultLayout,
+    onSaveAs: views.viewsUnavailable ? null : name => views.createView(name),
+    noun: 'people',
+  }
 
   // The open person lives in the URL, so reload, back and shared links work.
   const { personId } = useParams()
@@ -89,17 +100,16 @@ export default function ConversationsPage() {
         title="Conversations"
         actions={<>
           <Button variant="ghost" icon="download" onClick={exportConversations}>Export</Button>
-          <CustomizeMenu
-            model={peopleModel}
-            config={config}
-            onChange={setConfig}
-            onReset={views.reset}
-            canReset={!views.isDefaultLayout}
-            onSaveAs={views.viewsUnavailable ? null : name => views.createView(name)}
-            noun="people"
-          />
+          <CustomizeMenu {...customize} />
           <Button variant="primary" icon="plus" onClick={addPerson}>Add person</Button>
         </>}
+        mobileActions={
+          <MobileActions
+            primary={<Button variant="primary" icon="plus" onClick={addPerson}>Add person</Button>}
+            customize={customize}
+            items={[{ label: 'Export', onSelect: exportConversations }]}
+          />
+        }
       />
 
       <ViewsBar state={views} allLabel="All conversations" noun="conversations" />
@@ -131,6 +141,22 @@ export default function ConversationsPage() {
             ))}
           </tbody>
         </table>
+        {!waitingForView && shownPeople.length > 0 && (
+          <ul className="card-list" aria-label="People">
+            {shownPeople.map(p => (
+              <RecordCard
+                key={p.id}
+                label={`${p.name || 'Unnamed person'}${p.company ? `, ${p.company}` : ''}: open details`}
+                selected={personId === p.id}
+                onOpen={() => openPerson(p.id)}
+                title={p.name || 'Unnamed'}
+                aside={<span className="record-card-count">{p.talks === 1 ? '1 talk' : `${p.talks} talks`}</span>}
+                body={p.company}
+                meta={p.last_contact ? `Last contact ${formatShortDate(p.last_contact, undefined, profile.date_format)}` : 'No conversations yet'}
+              />
+            ))}
+          </ul>
+        )}
         <CollectionState state={waitingForView ? { status: 'loading', rows: [] } : data.people} onRetry={() => { reload('people'); reload('entries') }}>
           {shownPeople.length === 0 && (
             <div className="empty-state">

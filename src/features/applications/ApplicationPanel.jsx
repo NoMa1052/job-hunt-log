@@ -44,14 +44,14 @@ export default function ApplicationPanel({ app, onUpdate, onDelete, onClose }) {
           <div className="panel-tags">
             <TagMenu
               label="Status"
-              current={<Chip kind={status.kind}>{status.label}</Chip>}
+              current={<Chip kind={status.kind}>{status.label}<Caret /></Chip>}
               options={STATUS_OPTIONS.map(o => ({ value: o.value, node: <Chip kind={o.chip}>{o.label}</Chip> }))}
               value={app.status || 'applied'}
               onChange={v => onUpdate('status', v)}
             />
             <TagMenu
               label="Priority"
-              current={<span className="priority-tag">{optionLabel(PRIORITY_OPTIONS, app.priority, 'medium')} priority</span>}
+              current={<span className="priority-tag">{optionLabel(PRIORITY_OPTIONS, app.priority, 'medium')} priority<Caret /></span>}
               options={PRIORITY_OPTIONS.map(o => ({ value: o.value, node: <span className="priority-tag">{o.label} priority</span> }))}
               value={app.priority || 'medium'}
               onChange={v => onUpdate('priority', v)}
@@ -71,7 +71,10 @@ export default function ApplicationPanel({ app, onUpdate, onDelete, onClose }) {
         </label>
         <label className="key-item">
           <span className="key-label">Follow-up</span>
-          <Input type="date" className="key-input" value={app.follow_up_date || ''} onChange={e => onUpdate('follow_up_date', e.target.value)} />
+          <span className="date-wrap">
+            <Input type="date" className={`key-input${app.follow_up_date ? '' : ' is-empty'}`} value={app.follow_up_date || ''} onChange={e => onUpdate('follow_up_date', e.target.value)} />
+            {!app.follow_up_date && <span className="date-placeholder" aria-hidden="true">Set a date</span>}
+          </span>
         </label>
         {app.follow_up_date && fu.state !== 'upcoming' && (
           <div className="key-note"><FollowUp state={fu.state}>{fu.text}</FollowUp></div>
@@ -123,6 +126,9 @@ export default function ApplicationPanel({ app, onUpdate, onDelete, onClose }) {
   )
 }
 
+// The ▾ inside a chip that opens a menu.
+const Caret = () => <span className="tag-caret" aria-hidden="true">▾</span>
+
 // A tag that opens a small menu of choices.
 function TagMenu({ label, current, options, value, onChange }) {
   return (
@@ -130,7 +136,6 @@ function TagMenu({ label, current, options, value, onChange }) {
       trigger={({ open, toggle }) => (
         <button type="button" className="tag-btn" aria-haspopup="menu" aria-expanded={open} aria-label={`${label}: change`} onClick={toggle}>
           {current}
-          <span className="tag-caret" aria-hidden="true">▾</span>
         </button>
       )}
     >

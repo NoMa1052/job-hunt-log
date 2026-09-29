@@ -15,6 +15,14 @@ html, body {
 
 button, input, select, textarea { font-family: inherit; }
 
+/* Date inputs fill their cell on every browser (iOS Safari otherwise sizes
+   them to their content and centers the text). Grids that hold inputs use
+   minmax(0, 1fr) columns so an input can never force a column wider. */
+input[type="date"] { -webkit-appearance: none; appearance: none; display: block; width: 100%; min-width: 0; text-align: left; }
+input[type="date"]::-webkit-date-and-time-value { text-align: left; }
+.date-wrap { position: relative; display: block; }
+.date-placeholder { display: none; }
+
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
@@ -151,7 +159,7 @@ button, input, select, textarea { font-family: inherit; }
   padding: 0; border: 0; background: none; cursor: pointer; border-radius: var(--radius-full);
 }
 .tag-btn:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
-.tag-caret { font-size: 10px; color: var(--ink-muted); }
+.tag-caret { margin-left: 4px; font-size: 10px; line-height: 1; color: inherit; opacity: 0.7; }
 .priority-tag {
   display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: var(--radius-full);
   background: var(--surface-sunken); color: var(--ink); font-size: 12px; line-height: 16px; font-weight: 600; white-space: nowrap;
@@ -164,7 +172,7 @@ button, input, select, textarea { font-family: inherit; }
 .tag-check { color: var(--indigo); font-weight: 600; }
 
 .key-strip {
-  display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3);
   padding: var(--space-3); margin-bottom: var(--space-6);
   background: var(--canvas); border: 1px solid var(--line); border-radius: var(--radius-md);
 }
@@ -172,7 +180,6 @@ button, input, select, textarea { font-family: inherit; }
 .key-label { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--ink-muted); }
 .sk-input.key-input { height: 34px; font-size: 14px; padding: 0 8px; width: 100%; min-width: 0; }
 /* Room for the full "mm/dd/yyyy" and the calendar icon. */
-.sk-input[type="date"], .sk-input.key-input[type="date"] { min-width: 160px; }
 .key-item--wide { grid-column: 1 / -1; order: 3; }
 .key-note { grid-column: 1 / -1; order: 4; }
 
@@ -180,7 +187,7 @@ button, input, select, textarea { font-family: inherit; }
 .panel-links { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 .panel-link { display: flex; align-items: center; gap: var(--space-2); }
 .panel-links .sk-field { width: 100%; }
-.panel-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-3); }
+.panel-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: var(--space-4); margin-bottom: var(--space-3); }
 .panel-adds { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
 .panel-notes { margin-bottom: 0; }
 .panel-notes textarea.sk-input { min-height: 140px; }
@@ -259,7 +266,7 @@ button, input, select, textarea { font-family: inherit; }
 .customize-footer .name-form { width: 100%; padding: 0; }
 .filter-builder { display: flex; flex-direction: column; gap: var(--space-3); }
 .filter-empty { margin: 0; font-size: 14px; color: var(--ink-muted); }
-.filter-row { display: grid; grid-template-columns: 1fr 1fr 28px; gap: var(--space-2); align-items: center; }
+.filter-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: var(--space-2); align-items: center; }
 .filter-value { grid-column: 1 / 3; }
 .filter-value .sk-input { width: 100%; }
 .filter-options { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); }
@@ -306,7 +313,7 @@ button, input, select, textarea { font-family: inherit; }
 .settings-row { flex-direction: row; align-items: flex-start; gap: var(--space-3); }
 .settings-row .sk-field { flex: 1; }
 .settings-row > .sk-btn { margin-top: 24px; }
-.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.settings-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4); }
 .settings-grid .span-all { grid-column: 1 / -1; }
 .settings-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-3); }
 .settings-ok { font-size: 13px; color: var(--status-offer-ink); }
@@ -332,19 +339,19 @@ button, input, select, textarea { font-family: inherit; }
 }
 
 @media (max-width: 720px) {
-  .settings-grid { grid-template-columns: 1fr; }
+  .settings-grid { grid-template-columns: minmax(0, 1fr); }
   .settings-row { flex-direction: column; align-items: stretch; }
   .settings-row > .sk-btn { margin-top: 0; }
   .danger-zone, .connection-row { flex-direction: column; align-items: flex-start; }
   .settings-card { padding: var(--space-4); }
 }
 .settings-fieldset + .settings-fieldset { margin-top: var(--space-6); }
-.settings-fieldset .settings-grid { margin-top: var(--space-3); grid-template-columns: repeat(3, 1fr); }
+.settings-fieldset .settings-grid { margin-top: var(--space-3); grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .settings-fieldset .settings-desc { margin: 0; }
 .settings-option { padding: 0; font-size: 15px; line-height: 22px; font-weight: 600; color: var(--ink); }
 .radio-group { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); margin-top: var(--space-3); }
 .connection-row + .connection-row { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--line); }
-@media (max-width: 720px) { .settings-fieldset .settings-grid { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .settings-fieldset .settings-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* Sign in, sign up, reset password --------------------------------------------- */
 .auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--space-8) var(--space-4); background: var(--canvas); }
@@ -364,7 +371,7 @@ button, input, select, textarea { font-family: inherit; }
 .auth-links p { margin: 0; }
 
 /* Undo toast ------------------------------------------------------------------ */
-.undo-region { position: fixed; left: 50%; bottom: var(--space-6); transform: translateX(-50%); z-index: 70; pointer-events: none; }
+.undo-region { position: fixed; left: 50%; bottom: calc(var(--space-6) + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 70; pointer-events: none; }
 .undo-toast {
   display: flex; align-items: center; gap: var(--space-4); pointer-events: auto;
   padding: 10px var(--space-4); border-radius: var(--radius-md);
@@ -377,3 +384,110 @@ button, input, select, textarea { font-family: inherit; }
 .timeline-head .timeline-date { margin-bottom: 0; }
 .timeline-head .ui-icon-btn { opacity: 0.55; }
 .timeline-item:hover .timeline-head .ui-icon-btn, .timeline-head .ui-icon-btn:focus-visible { opacity: 1; }
+
+/* Mobile: record cards, "More" menu and bottom sheet ------------------------- */
+/* Shown only on phones (see the 640px block below). */
+.card-list, .page-actions-mobile { display: none; }
+.card-list { list-style: none; margin: 0; padding: 0; flex-direction: column; gap: var(--space-2); }
+.record-card {
+  display: flex; flex-direction: column; gap: var(--space-1); width: 100%; min-height: 44px;
+  padding: var(--space-3) 14px; border: 1px solid var(--line); border-radius: var(--radius-md);
+  background: var(--surface); color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+}
+.record-card:active { background: var(--canvas); }
+.record-card:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+.record-card[aria-current="true"] { border-color: var(--indigo); }
+.record-card-top, .record-card-meta { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-width: 0; }
+.record-card-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; line-height: 22px; font-weight: 600; }
+.record-card-top .sk-chip { flex: none; }
+.record-card-body {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  overflow-wrap: anywhere; font-size: 14px; line-height: 20px; color: var(--ink);
+}
+.record-card-meta { font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.record-card-meta-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.record-card-meta .sk-followup, .record-card-count { flex: none; }
+.record-card-count { font-size: 13px; line-height: 18px; font-weight: 500; color: var(--ink-muted); white-space: nowrap; }
+
+.more-menu { min-width: 200px; }
+.sheet-backdrop {
+  position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end;
+  background: color-mix(in srgb, var(--ink) 35%, transparent);
+}
+.sheet {
+  width: 100%; max-height: 85vh; overflow-y: auto; padding-bottom: env(safe-area-inset-bottom);
+  background: var(--surface); border-radius: var(--radius-lg) var(--radius-lg) 0 0; box-shadow: var(--shadow-pop);
+}
+.sheet-head {
+  position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.sheet-title { margin: 0; font-size: 17px; line-height: 24px; font-weight: 600; }
+
+@media (max-width: 640px) {
+  /* Header: logo and avatar on one row, section tabs on the next. */
+  .topbar {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand user" "nav nav";
+    height: auto; column-gap: var(--space-3);
+    padding: env(safe-area-inset-top) max(var(--space-4), env(safe-area-inset-right)) 0 max(var(--space-4), env(safe-area-inset-left));
+  }
+  .topbar-left { display: contents; }
+  .topbar .sk-brand { grid-area: brand; height: 52px; min-width: 0; }
+  .topbar .user-menu { grid-area: user; }
+  .topnav {
+    grid-area: nav; margin: 0 calc(-1 * var(--space-4)); padding: 0 var(--space-4);
+    gap: 20px; height: 44px; align-self: auto; scroll-padding: 0 var(--space-4);
+  }
+  .topnav-link { min-height: 44px; }
+  .avatar { width: 44px; height: 44px; font-size: 14px; }
+
+  /* Page: side gutters, safe areas, and room for Safari's bottom bar. */
+  .page {
+    padding: var(--space-4) max(var(--space-4), env(safe-area-inset-right)) calc(96px + env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
+  }
+  .auth-page { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+
+  /* Title and counts, then one row: main action left, More right. */
+  .page-row { flex-direction: column; align-items: stretch; gap: var(--space-3); }
+  .page-actions--desktop { display: none; }
+  .page-actions-mobile { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+
+  /* Lists: cards instead of the table. */
+  .sk-table-panel { background: none; border: 0; border-radius: 0; overflow: visible; }
+  .sk-table-panel .sk-table { display: none; }
+  .card-list { display: flex; }
+  .sk-table-panel .empty-state { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); }
+
+  /* Detail view: full-screen sheet; the header (title, close) stays put and
+     the body scrolls under it. */
+  .ui-side-panel-header { padding-top: calc(var(--space-4) + env(safe-area-inset-top)); }
+  .ui-side-panel-body { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .key-strip { grid-template-columns: minmax(0, 1fr); }
+  .key-item--wide { order: 0; }
+  .date-placeholder {
+    display: block; position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+    color: var(--ink-muted); font-size: 16px; line-height: 22px; pointer-events: none;
+  }
+  .sk-input.is-empty::-webkit-datetime-edit { color: transparent; }
+  .panel-link { width: 100%; }
+  .panel-link-open { flex: 1; min-width: 0; }
+  .panel-links > .sk-btn, .panel-adds .sk-btn { height: 44px; padding-left: 0; padding-right: 0; }
+  .panel-links > .sk-btn:hover, .panel-adds .sk-btn:hover { background: none; }
+  .panel-adds { flex-direction: column; align-items: flex-start; gap: 0; }
+
+  /* Inputs at 16px so iOS doesn't zoom in on focus. */
+  .sk-input, .sk-input.key-input, .customize-row .sk-input, .filter-row .sk-input,
+  select, textarea, .subtitle-input { font-size: 16px; }
+  .sk-input, .sk-input.key-input, .customize-row .sk-input, .filter-row .sk-input, .sk-input.rs-tone { height: 44px; }
+  .sk-input.rs-tone { font-size: 16px; }
+  .title-input, .subtitle-input { min-height: 44px; }
+
+  /* Tap targets: 44px minimum. */
+  .sk-btn, .sk-btn.ui-btn--sm { height: 44px; }
+  .ui-icon-btn--md, .ui-icon-btn--sm { width: 44px; height: 44px; }
+  .ui-btn--link { display: inline-flex; align-items: center; min-height: 44px; }
+  .tag-btn { min-height: 44px; }
+  .view-tab { height: 44px; }
+  .menu-item, .user-menu-item, .tag-option, .ui-popover-row, .filter-option, .radio-row, .panel-list-item { min-height: 44px; }
+  .timeline-head .ui-icon-btn { opacity: 1; }
+}

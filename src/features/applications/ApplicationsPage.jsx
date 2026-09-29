@@ -7,7 +7,9 @@ import { toCSV, downloadCSV, formatShortDate } from '../../lib/format'
 import { Button, Chip, FollowUp, Icon, IconButton } from '../../ui'
 import CollectionState from '../../components/CollectionState'
 import useDeleteConfirm from '../../components/useDeleteConfirm'
+import MobileActions from '../../components/MobileActions'
 import PageHeader from '../../components/PageHeader'
+import RecordCard from '../../components/RecordCard'
 import ApplicationPanel from './ApplicationPanel'
 import CustomizeMenu from '../views/CustomizeMenu'
 import SortHeader from '../views/SortHeader'
@@ -54,6 +56,16 @@ export default function ApplicationsPage() {
 
   const visibleColumns = config.columns.filter(c => c.visible).map(c => column(c.key))
   const shownApplications = useMemo(() => applyView(applications, config), [applications, config])
+  const exportApplications = () => downloadCSV('applications.csv', toCSV(EXPORT_HEADERS, shownApplications))
+  const customize = {
+    model: applicationsModel,
+    config,
+    onChange: setConfig,
+    onReset: views.reset,
+    canReset: !views.isDefaultLayout,
+    onSaveAs: views.viewsUnavailable ? null : name => views.createView(name),
+    noun: 'applications',
+  }
   const editingApp = editingAppId ? applications.find(a => a.id === editingAppId) : null
 
   // A link to an application that doesn't exist (deleted, or someone else's)
@@ -67,18 +79,17 @@ export default function ApplicationsPage() {
       <PageHeader
         title="Applications"
         actions={<>
-          <Button variant="ghost" icon="download" onClick={() => downloadCSV('applications.csv', toCSV(EXPORT_HEADERS, shownApplications))}>Export</Button>
-          <CustomizeMenu
-            model={applicationsModel}
-            config={config}
-            onChange={setConfig}
-            onReset={views.reset}
-            canReset={!views.isDefaultLayout}
-            onSaveAs={views.viewsUnavailable ? null : name => views.createView(name)}
-            noun="applications"
-          />
+          <Button variant="ghost" icon="download" onClick={exportApplications}>Export</Button>
+          <CustomizeMenu {...customize} />
           <Button variant="primary" icon="plus" onClick={addApplication}>Add application</Button>
         </>}
+        mobileActions={
+          <MobileActions
+            primary={<Button variant="primary" icon="plus" onClick={addApplication}>Add application</Button>}
+            customize={customize}
+            items={[{ label: 'Export', onSelect: exportApplications }]}
+          />
+        }
       />
 
       <ViewsBar state={views} allLabel="All applications" noun="applications" />
@@ -112,6 +123,28 @@ export default function ApplicationsPage() {
             ))}
           </tbody>
         </table>
+        {!waitingForView && shownApplications.length > 0 && (
+          <ul className="card-list" aria-label="Applications">
+            {shownApplications.map(a => {
+              const chip = statusChip(a.status)
+              const f = followUp(a, undefined, dateFormat)
+              const meta = [a.location, a.date_applied && `Applied ${formatShortDate(a.date_applied, undefined, dateFormat)}`].filter(Boolean).join(' · ')
+              return (
+                <RecordCard
+                  key={a.id}
+                  label={`${a.company || 'Untitled application'}${a.position ? `, ${a.position}` : ''}: open details`}
+                  selected={editingAppId === a.id}
+                  onOpen={() => setEditingAppId(a.id)}
+                  title={a.company || 'Untitled'}
+                  aside={<Chip kind={chip.kind}>{chip.label}</Chip>}
+                  body={a.position}
+                  meta={meta}
+                  end={<FollowUp state={f.state}>{f.text}</FollowUp>}
+                />
+              )
+            })}
+          </ul>
+        )}
         <CollectionState state={waitingForView ? { status: 'loading', rows: [] } : data.applications} onRetry={() => reload('applications')}>
           {shownApplications.length === 0 && (
             <div className="empty-state">
